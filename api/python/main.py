@@ -640,13 +640,24 @@ async def sanitize_staging_data(execute: bool = False):
         result = sanitizer.sanitize(dry_run=not execute)
         
         if result['success']:
+            # Format false positives for frontend display
+            records_to_delete = [
+                {
+                    "name": fp['full_name'],
+                    "program": fp['program'],
+                    "document_count": fp['document_count']
+                }
+                for fp in result['false_positives']
+            ]
+            
             return {
                 "success": True,
                 "dry_run": not execute,
-                "false_positives_found": result['stats']['false_positives_found'],
+                "false_positives_count": result['stats']['false_positives_found'],
+                "records_to_delete": records_to_delete,
                 "students_deleted": result['stats'].get('students_deleted', 0) if execute else 0,
-                "message": f"{'Deleted' if execute else 'Found'} {result['stats']['false_positives_found']} false positive records",
-                "false_positives": result['false_positives'],
+                "documents_removed": result['stats'].get('documents_orphaned', 0) if execute else 0,
+                "message": f"{'Successfully sanitized' if execute else 'Found'} {result['stats']['false_positives_found']} false positive records",
                 "stats": result['stats']
             }
         else:

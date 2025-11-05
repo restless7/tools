@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Database, Users, FileText, Home, TrendingUp, Filter, CheckCircle2, Clock, AlertCircle, Trash2, AlertTriangle } from 'lucide-react';
+import { Database, Users, FileText, Home, TrendingUp, Filter, CheckCircle2, Clock, AlertCircle, Trash2, AlertTriangle, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 
@@ -54,6 +54,12 @@ export default function ICEDatabasePage() {
   const [sourceDirectory, setSourceDirectory] = useState<string>('/home/sebastiangarcia/Downloads/data_ingestion/drive-download-20251105T055300Z-1-001');
   const [isCleaning, setIsCleaning] = useState(false);
   const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
+  const [isSanitizing, setIsSanitizing] = useState(false);
+  const [showSanitizeModal, setShowSanitizeModal] = useState(false);
+  const [sanitizePreview, setSanitizePreview] = useState<{
+    false_positives_count: number;
+    records_to_delete: Array<{ name: string; program: string; document_count: number }>;
+  } | null>(null);
   const itemsPerPage = 20;
 
   // Fetch summary data
@@ -195,6 +201,74 @@ export default function ICEDatabasePage() {
     }
   };
 
+  const previewSanitization = async () => {
+    setIsSanitizing(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/staging/sanitize?execute=false`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to preview sanitization');
+      }
+
+      const data = await response.json();
+      setSanitizePreview(data);
+      setShowSanitizeModal(true);
+    } catch (err) {
+      console.error('Sanitization preview error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to preview sanitization');
+    } finally {
+      setIsSanitizing(false);
+    }
+  };
+
+  const executeSanitization = async () => {
+    setIsSanitizing(true);
+    setError(null);
+    setIngestionMessage(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/staging/sanitize?execute=true`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Sanitization failed');
+      }
+
+      const data = await response.json();
+      setIngestionMessage(data.message);
+      setShowSanitizeModal(false);
+      setSanitizePreview(null);
+      
+      // Refresh summary and students after sanitization
+      const summaryResponse = await fetch(`${API_BASE_URL}/staging/summary`);
+      if (summaryResponse.ok) {
+        const summaryData = await summaryResponse.json();
+        setSummary(summaryData);
+      }
+
+      // Refresh students list
+      const studentsResponse = await fetch(`${API_BASE_URL}/staging/students?limit=${itemsPerPage}&offset=0`);
+      if (studentsResponse.ok) {
+        const studentsData = await studentsResponse.json();
+        setStudents(studentsData.students);
+      }
+    } catch (err) {
+      console.error('Sanitization error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to sanitize data');
+    } finally {
+      setIsSanitizing(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
@@ -242,10 +316,10 @@ export default function ICEDatabasePage() {
               placeholder="/path/to/data/directory"
             />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <button
               onClick={runIngestion}
-              disabled={isIngesting || isCleaning}
+              disabled={isIngesting || isCleaning || isSanitizing}
               className="bg-gradient-to-br from-orange-500 to-red-600 text-white font-medium py-3 px-6 rounded-lg hover:from-orange-600 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2"
             >
               {isIngesting ? (
@@ -262,8 +336,26 @@ export default function ICEDatabasePage() {
             </button>
             
             <button
+              onClick={previewSanitization}
+              disabled={isIngesting || isCleaning || isSanitizing}
+              className="bg-gradient-to-br from-purple-500 to-purple-700 text-white font-medium py-3 px-6 rounded-lg hover:from-purple-600 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2"
+            >
+              {isSanitizing ? (
+                <>
+                  <LoadingSpinner size="sm" />
+                  <span>Sanitizing...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={18} />
+                  <span>Sanitize Data</span>
+                </>
+              )}
+            </button>
+
+            <button
               onClick={() => setShowCleanupConfirm(true)}
-              disabled={isIngesting || isCleaning}
+              disabled={isIngesting || isCleaning || isSanitizing}
               className="bg-gradient-to-br from-red-500 to-red-700 text-white font-medium py-3 px-6 rounded-lg hover:from-red-600 hover:to-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2"
             >
               <Trash2 size={18} />
@@ -272,6 +364,111 @@ export default function ICEDatabasePage() {
           </div>
         </div>
       </div>
+
+      {/* Sanitization Modal */}
+      {showSanitizeModal && sanitizePreview && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-6 z-10">
+              <div className="flex items-center mb-4">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
+                  <Sparkles className="w-6 h-6 text-purple-600" />
+                </div>
+                <div className="ml-4 flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900">Sanitize False Positive Records</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Found {sanitizePreview.false_positives_count} false positive records
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-purple-900 font-medium mb-2">
+                  📋 These records appear to be administrative folders or system data, not actual students:
+                </p>
+                <ul className="text-xs text-purple-800 space-y-1 list-disc list-inside">
+                  <li>Years (2019, 2024, 2025, etc.)</li>
+                  <li>Programs (Au Pair, Work and Travel, Camp Counselor)</li>
+                  <li>Locations (AUSTRALIA, CANADA, USA, IRLANDA, MALTA)</li>
+                  <li>Administrative folders (DOCS, VISAS, Correo de bienvenida)</li>
+                </ul>
+              </div>
+
+              {sanitizePreview.records_to_delete.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Records to be deleted:</h4>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="text-xs text-gray-600 border-b border-gray-300">
+                        <tr>
+                          <th className="text-left pb-2 font-medium">Name</th>
+                          <th className="text-left pb-2 font-medium">Program</th>
+                          <th className="text-right pb-2 font-medium">Documents</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {sanitizePreview.records_to_delete.map((record, idx) => (
+                          <tr key={idx} className="hover:bg-gray-100">
+                            <td className="py-2 text-gray-900">{record.name}</td>
+                            <td className="py-2 text-gray-700">{record.program}</td>
+                            <td className="py-2 text-right text-gray-600">{record.document_count} docs</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <AlertTriangle className="w-5 h-5 text-yellow-600 mr-3 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm text-yellow-900 font-medium">This action will permanently delete:</p>
+                    <ul className="text-xs text-yellow-800 mt-2 space-y-1 list-disc list-inside">
+                      <li>{sanitizePreview.false_positives_count} false positive student records</li>
+                      <li>All associated documents and metadata</li>
+                      <li>This action CANNOT be undone</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowSanitizeModal(false);
+                  setSanitizePreview(null);
+                }}
+                disabled={isSanitizing}
+                className="flex-1 bg-white border border-gray-300 text-gray-900 font-medium py-2.5 px-4 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeSanitization}
+                disabled={isSanitizing}
+                className="flex-1 bg-gradient-to-br from-purple-500 to-purple-700 text-white font-medium py-2.5 px-4 rounded-lg hover:from-purple-600 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isSanitizing ? (
+                  <>
+                    <LoadingSpinner size="sm" />
+                    <span>Sanitizing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} />
+                    <span>Yes, Sanitize ({sanitizePreview.false_positives_count} records)</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Cleanup Confirmation Modal */}
       {showCleanupConfirm && (
