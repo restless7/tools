@@ -621,6 +621,41 @@ async def get_staging_stats():
         logger.error(f"Error getting staging stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/staging/sanitize")
+async def sanitize_staging_data(execute: bool = False):
+    """
+    Sanitize staging data by removing false positive student records.
+    
+    Args:
+        execute: If False, runs dry-run (preview only). If True, actually deletes.
+    """
+    try:
+        import sys
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from data_sanitizer import DataSanitizer
+        
+        db_url = os.getenv('DATABASE_URL', 'postgresql://postgres:224207bB@localhost:5432/leads_project')
+        
+        sanitizer = DataSanitizer(db_url)
+        result = sanitizer.sanitize(dry_run=not execute)
+        
+        if result['success']:
+            return {
+                "success": True,
+                "dry_run": not execute,
+                "false_positives_found": result['stats']['false_positives_found'],
+                "students_deleted": result['stats'].get('students_deleted', 0) if execute else 0,
+                "message": f"{'Deleted' if execute else 'Found'} {result['stats']['false_positives_found']} false positive records",
+                "false_positives": result['false_positives'],
+                "stats": result['stats']
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result.get('error', 'Sanitization failed'))
+            
+    except Exception as e:
+        logger.error(f"Sanitization failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/staging/cleanup")
 async def cleanup_staging_data(confirm: bool = False):
     """
