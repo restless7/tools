@@ -8,6 +8,8 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 interface StagingSummary {
   total_students: number;
   total_documents: number;
+  total_leads: number;
+  total_reference_files: number;
   programs: Array<{ program: string; count: number }>;
   sources: Array<{ source: string; count: number }>;
   latest_run: {
@@ -345,44 +347,65 @@ export default function ICEDatabasePage() {
 
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
             <div className="flex items-center justify-between mb-2">
-              <Users size={20} className="text-blue-600" />
-              <TrendingUp size={16} className="text-green-500" />
+              <Users size={18} className="text-blue-600" />
             </div>
-            <p className="text-sm text-gray-600 font-medium">Total Students</p>
-            <p className="text-3xl font-bold text-gray-900 mt-1">
+            <p className="text-xs text-gray-600 font-medium">Total Students</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">
               {summary.total_students.toLocaleString()}
             </p>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
             <div className="flex items-center justify-between mb-2">
-              <FileText size={20} className="text-green-600" />
+              <FileText size={18} className="text-green-600" />
             </div>
-            <p className="text-sm text-gray-600 font-medium">Total Documents</p>
-            <p className="text-3xl font-bold text-gray-900 mt-1">
+            <p className="text-xs text-gray-600 font-medium">Total Documents</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">
               {summary.total_documents.toLocaleString()}
             </p>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
             <div className="flex items-center justify-between mb-2">
-              <CheckCircle2 size={20} className="text-purple-600" />
+              <Users size={18} className="text-purple-600" />
             </div>
-            <p className="text-sm text-gray-600 font-medium">Enriched Records</p>
-            <p className="text-3xl font-bold text-gray-900 mt-1">
+            <p className="text-xs text-gray-600 font-medium">Total Leads</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">
+              {summary.total_leads.toLocaleString()}
+            </p>
+            <p className="text-xs text-purple-600 mt-1 font-medium">V3 Enhanced</p>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+            <div className="flex items-center justify-between mb-2">
+              <FileText size={18} className="text-indigo-600" />
+            </div>
+            <p className="text-xs text-gray-600 font-medium">Reference Files</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">
+              {summary.total_reference_files.toLocaleString()}
+            </p>
+            <p className="text-xs text-indigo-600 mt-1 font-medium">V3 Enhanced</p>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+            <div className="flex items-center justify-between mb-2">
+              <CheckCircle2 size={18} className="text-teal-600" />
+            </div>
+            <p className="text-xs text-gray-600 font-medium">Enriched Records</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">
               {summary.sources.find(s => s.source === 'directory+csv')?.count || 0}
             </p>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
             <div className="flex items-center justify-between mb-2">
-              <Clock size={20} className="text-orange-600" />
+              <Clock size={18} className="text-orange-600" />
             </div>
-            <p className="text-sm text-gray-600 font-medium">Execution Time</p>
-            <p className="text-3xl font-bold text-gray-900 mt-1">
+            <p className="text-xs text-gray-600 font-medium">Execution Time</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">
               {summary.latest_run?.execution_time_seconds.toFixed(1)}s
             </p>
           </div>

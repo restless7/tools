@@ -302,6 +302,14 @@ async def get_staging_summary():
         cur.execute("SELECT COUNT(*) as count FROM staging_document")
         total_documents = cur.fetchone()['count']
         
+        # Get leads count
+        cur.execute("SELECT COUNT(*) as count FROM staging_lead")
+        total_leads = cur.fetchone()['count']
+        
+        # Get reference files count
+        cur.execute("SELECT COUNT(*) as count FROM staging_reference_data")
+        total_reference_files = cur.fetchone()['count']
+        
         # Get source breakdown
         cur.execute("""
             SELECT p.source, COUNT(*) as count
@@ -325,6 +333,8 @@ async def get_staging_summary():
         return {
             "total_students": total_students,
             "total_documents": total_documents,
+            "total_leads": total_leads,
+            "total_reference_files": total_reference_files,
             "programs": programs,
             "sources": sources,
             "latest_run": dict(latest_run) if latest_run else None
