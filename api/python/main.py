@@ -84,22 +84,27 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    # Check ICE system status
-    ice_status = "maintenance"
+    # Check ICE V3 system status
+    ice_status = "active"  # V3 system is production-ready
     try:
-        from ice_ingestion import ice_manager
-        ice_env = ice_manager.validate_environment()
-        ice_status = "active" if ice_env["valid"] else "maintenance"
+        # Verify V3 script exists
+        from pathlib import Path
+        v3_script = Path(__file__).parent / "ingestion_to_staging_v3.py"
+        if not v3_script.exists():
+            ice_status = "maintenance"
     except Exception as e:
-        logger.warning(f"ICE status check failed: {e}")
+        logger.warning(f"ICE V3 status check failed: {e}")
+        ice_status = "maintenance"
     
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "services": {
             "excel_converter": "active",
-            "ice_ingestion": ice_status
-        }
+            "ice_ingestion_v3": ice_status,
+            "staging_cleanup": "active"
+        },
+        "version": "1.1.0 - V3 Enhanced"
     }
 
 @app.post("/excel/convert", response_model=ConversionResult)
@@ -526,6 +531,137 @@ async def trigger_staging_ingestion(
             
     except Exception as e:
         logger.error(f"Failed to trigger ingestion: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/staging/trigger-v3-ingestion")
+async def trigger_v3_ingestion(
+    background_tasks: BackgroundTasks,
+    source_directory: str = "/home/sebastiangarcia/Downloads/data_ingestion/drive-download-20251105T055300Z-1-001"
+):
+    """
+    Trigger V3 enhanced staging ingestion pipeline with Excel/CSV extraction
+    """
+    try:
+        import subprocess
+        from pathlib import Path
+        
+        # Verify source directory exists
+        if not Path(source_directory).exists():
+            raise HTTPException(status_code=400, detail=f"Source directory does not exist: {source_directory}")
+        
+        # Run V3 ingestion script
+        script_path = Path(__file__).parent / "ingestion_to_staging_v3.py"
+        
+        logger.info(f"Starting V3 enhanced ingestion from: {source_directory}")
+        
+        # Update source directory in the script or pass as env var
+        env = os.environ.copy()
+        env['SOURCE_DIR'] = source_directory
+        
+        result = subprocess.run(
+            ["python3", str(script_path)],
+            capture_output=True,
+            text=True,
+            cwd=str(script_path.parent),
+            env=env,
+            timeout=300  # 5 minute timeout
+        )
+        
+        if result.returncode == 0:
+            return {
+                "success": True,
+                "message": "V3 Enhanced ingestion pipeline completed successfully",
+                "stdout": result.stdout[-2000:] if result.stdout else "",  # Last 2000 chars
+                "pipeline_version": "v3"
+            }
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail=f"V3 Ingestion failed: {result.stderr[-1000:]}"
+            )
+            
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="Ingestion timeout (>5min)")
+    except Exception as e:
+        logger.error(f"Failed to trigger V3 ingestion: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/staging/stats")
+async def get_staging_stats():
+    """
+    Get comprehensive staging statistics including leads and reference data
+    """
+    try:
+        import sys
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from cleanup_staging import StagingCleaner
+        
+        staging_dir = os.getenv('STAGING_DIR', '/home/sebastiangarcia/ice-data-staging')
+        db_url = os.getenv('DATABASE_URL', 'postgresql://postgres:224207bB@localhost:5432/leads_project')
+        
+        cleaner = StagingCleaner(staging_dir, db_url)
+        stats = cleaner.get_staging_stats()
+        
+        return {
+            "success": True,
+            "stats": stats
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting staging stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/staging/cleanup")
+async def cleanup_staging_data(confirm: bool = False):
+    """
+    Clean all staging data (database + files) for fresh V3 ingestion
+    
+    Args:
+        confirm: Must be true to proceed (safety check)
+    """
+    try:
+        import sys
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from cleanup_staging import StagingCleaner
+        
+        if not confirm:
+            # Return current stats without cleaning
+            staging_dir = os.getenv('STAGING_DIR', '/home/sebastiangarcia/ice-data-staging')
+            db_url = os.getenv('DATABASE_URL', 'postgresql://postgres:224207bB@localhost:5432/leads_project')
+            
+            cleaner = StagingCleaner(staging_dir, db_url)
+            stats = cleaner.get_staging_stats()
+            
+            return {
+                "success": False,
+                "message": "Cleanup requires confirmation. Set confirm=true to proceed.",
+                "current_stats": stats,
+                "warning": "This will DELETE all staging data: database records, documents, CSVs, and reports"
+            }
+        
+        # Perform cleanup
+        staging_dir = os.getenv('STAGING_DIR', '/home/sebastiangarcia/ice-data-staging')
+        db_url = os.getenv('DATABASE_URL', 'postgresql://postgres:224207bB@localhost:5432/leads_project')
+        
+        cleaner = StagingCleaner(staging_dir, db_url)
+        success = cleaner.clean_all(confirm=True)
+        
+        if success:
+            return {
+                "success": True,
+                "message": "Staging environment cleaned successfully. Ready for fresh V3 ingestion.",
+                "cleaned": {
+                    "database": True,
+                    "documents": True,
+                    "extracted_csvs": True,
+                    "reports": True
+                }
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Some cleanup operations failed")
+            
+    except Exception as e:
+        logger.error(f"Staging cleanup failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/cleanup")

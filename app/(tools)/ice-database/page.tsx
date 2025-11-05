@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Database, Users, FileText, Home, TrendingUp, Filter, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Database, Users, FileText, Home, TrendingUp, Filter, CheckCircle2, Clock, AlertCircle, Trash2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 
@@ -50,6 +50,8 @@ export default function ICEDatabasePage() {
   const [isIngesting, setIsIngesting] = useState(false);
   const [ingestionMessage, setIngestionMessage] = useState<string | null>(null);
   const [sourceDirectory, setSourceDirectory] = useState<string>('/home/sebastiangarcia/Downloads/data_ingestion/drive-download-20251105T055300Z-1-001');
+  const [isCleaning, setIsCleaning] = useState(false);
+  const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
   const itemsPerPage = 20;
 
   // Fetch summary data
@@ -118,7 +120,8 @@ export default function ICEDatabasePage() {
     setIngestionMessage(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/staging/trigger-ingestion`, {
+      // Use V3 enhanced ingestion pipeline
+      const response = await fetch(`${API_BASE_URL}/staging/trigger-v3-ingestion`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source_directory: sourceDirectory }),
@@ -126,11 +129,11 @@ export default function ICEDatabasePage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Ingestion failed');
+        throw new Error(errorData.detail || 'V3 Ingestion failed');
       }
 
       const data = await response.json();
-      setIngestionMessage(data.message);
+      setIngestionMessage(`${data.message} (${data.pipeline_version.toUpperCase()})` );
       
       // Refresh summary and students after ingestion
       const summaryResponse = await fetch(`${API_BASE_URL}/staging/summary`);
@@ -150,6 +153,43 @@ export default function ICEDatabasePage() {
       setError(err instanceof Error ? err.message : 'Failed to run ingestion');
     } finally {
       setIsIngesting(false);
+    }
+  };
+
+  const cleanupStaging = async () => {
+    setIsCleaning(true);
+    setError(null);
+    setIngestionMessage(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/staging/cleanup?confirm=true`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Cleanup failed');
+      }
+
+      const data = await response.json();
+      setIngestionMessage(data.message);
+      setShowCleanupConfirm(false);
+      
+      // Refresh summary and students after cleanup
+      const summaryResponse = await fetch(`${API_BASE_URL}/staging/summary`);
+      if (summaryResponse.ok) {
+        const summaryData = await summaryResponse.json();
+        setSummary(summaryData);
+      }
+
+      // Clear students list
+      setStudents([]);
+    } catch (err) {
+      console.error('Cleanup error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to cleanup staging');
+    } finally {
+      setIsCleaning(false);
     }
   };
 
@@ -200,25 +240,88 @@ export default function ICEDatabasePage() {
               placeholder="/path/to/data/directory"
             />
           </div>
-          <button
-            onClick={runIngestion}
-            disabled={isIngesting}
-            className="w-full bg-gradient-to-br from-orange-500 to-red-600 text-white font-medium py-3 px-6 rounded-lg hover:from-orange-600 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2"
-          >
-            {isIngesting ? (
-              <>
-                <LoadingSpinner size="sm" />
-                <span>Running Ingestion...</span>
-              </>
-            ) : (
-              <>
-                <Database size={18} />
-                <span>Run Ingestion Pipeline</span>
-              </>
-            )}
-          </button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <button
+              onClick={runIngestion}
+              disabled={isIngesting || isCleaning}
+              className="bg-gradient-to-br from-orange-500 to-red-600 text-white font-medium py-3 px-6 rounded-lg hover:from-orange-600 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2"
+            >
+              {isIngesting ? (
+                <>
+                  <LoadingSpinner size="sm" />
+                  <span>Running V3 Ingestion...</span>
+                </>
+              ) : (
+                <>
+                  <Database size={18} />
+                  <span>Run V3 Ingestion Pipeline</span>
+                </>
+              )}
+            </button>
+            
+            <button
+              onClick={() => setShowCleanupConfirm(true)}
+              disabled={isIngesting || isCleaning}
+              className="bg-gradient-to-br from-red-500 to-red-700 text-white font-medium py-3 px-6 rounded-lg hover:from-red-600 hover:to-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2"
+            >
+              <Trash2 size={18} />
+              <span>Clean & Reset</span>
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Cleanup Confirmation Modal */}
+      {showCleanupConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center mb-4">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="ml-4 text-lg font-semibold text-gray-900">Clean Staging Environment?</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              This will permanently DELETE:
+            </p>
+            <ul className="text-sm text-gray-600 mb-6 space-y-1 list-disc list-inside">
+              <li>All database records (students, documents, leads)</li>
+              <li>All staged documents in /ice-data-staging/documents</li>
+              <li>All extracted CSV files</li>
+              <li>All reports and logs</li>
+            </ul>
+            <p className="text-sm text-gray-700 mb-6 font-medium">
+              This action CANNOT be undone. You can run a fresh V3 ingestion after cleanup.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCleanupConfirm(false)}
+                disabled={isCleaning}
+                className="flex-1 bg-gray-200 text-gray-900 font-medium py-2 px-4 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={cleanupStaging}
+                disabled={isCleaning}
+                className="flex-1 bg-red-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isCleaning ? (
+                  <>
+                    <LoadingSpinner size="sm" />
+                    <span>Cleaning...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={16} />
+                    <span>Yes, Clean All</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Success Message */}
       {ingestionMessage && (

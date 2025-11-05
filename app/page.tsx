@@ -7,7 +7,9 @@ import { useEffect, useState } from 'react';
 
 interface ServiceStatus {
   excel_converter: string;
-  ice_ingestion: string;
+  ice_ingestion?: string;  // Legacy V2
+  ice_ingestion_v3?: string;  // New V3 system
+  staging_cleanup?: string;
 }
 
 export default function Dashboard() {
@@ -48,10 +50,10 @@ export default function Dashboard() {
     },
     {
       title: 'ICE Database Ingestion',
-      description: 'Process and ingest data from Google Drive into the ICE database system.',
+      description: 'V3 Enhanced: Process and ingest data with Excel/CSV extraction, lead capture, and reference data.',
       href: '/ice-database',
       icon: Database,
-      status: serviceStatus?.ice_ingestion === 'active' ? 'active' as const : 'maintenance' as const,
+      status: serviceStatus?.ice_ingestion_v3 === 'active' || serviceStatus?.ice_ingestion === 'active' ? 'active' as const : 'maintenance' as const,
       gradient: 'from-orange-500 to-red-600'
     }
   ];
