@@ -479,6 +479,55 @@ async def get_ingestion_runs(limit: int = 10):
         logger.error(f"Error getting ingestion runs: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/staging/trigger-ingestion")
+async def trigger_staging_ingestion(
+    background_tasks: BackgroundTasks,
+    source_directory: str = "/home/sebastiangarcia/Downloads/data_ingestion/drive-download-20251105T055300Z-1-001"
+):
+    """
+    Trigger full staging ingestion pipeline
+    """
+    try:
+        import subprocess
+        from pathlib import Path
+        
+        # Verify source directory exists
+        if not Path(source_directory).exists():
+            raise HTTPException(status_code=400, detail=f"Source directory does not exist: {source_directory}")
+        
+        # Run ingestion script
+        script_path = Path(__file__).parent / "ingestion_to_staging.py"
+        
+        logger.info(f"Starting staging ingestion from: {source_directory}")
+        
+        # Update source directory in the script or pass as env var
+        env = os.environ.copy()
+        env['SOURCE_DIR'] = source_directory
+        
+        result = subprocess.run(
+            ["python", str(script_path)],
+            capture_output=True,
+            text=True,
+            cwd=str(script_path.parent),
+            env=env
+        )
+        
+        if result.returncode == 0:
+            return {
+                "success": True,
+                "message": "Ingestion pipeline completed successfully",
+                "stdout": result.stdout[-1000:] if result.stdout else "",  # Last 1000 chars
+            }
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Ingestion failed: {result.stderr}"
+            )
+            
+    except Exception as e:
+        logger.error(f"Failed to trigger ingestion: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.delete("/cleanup")
 async def cleanup_files():
     """

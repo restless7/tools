@@ -47,6 +47,9 @@ export default function ICEDatabasePage() {
   const [selectedProgram, setSelectedProgram] = useState<string>('');
   const [selectedSource, setSelectedSource] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(0);
+  const [isIngesting, setIsIngesting] = useState(false);
+  const [ingestionMessage, setIngestionMessage] = useState<string | null>(null);
+  const [sourceDirectory, setSourceDirectory] = useState<string>('/home/sebastiangarcia/Downloads/data_ingestion/drive-download-20251105T055300Z-1-001');
   const itemsPerPage = 20;
 
   // Fetch summary data
@@ -109,6 +112,47 @@ export default function ICEDatabasePage() {
     return source === 'directory+csv' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
   };
 
+  const runIngestion = async () => {
+    setIsIngesting(true);
+    setError(null);
+    setIngestionMessage(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/staging/trigger-ingestion`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source_directory: sourceDirectory }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Ingestion failed');
+      }
+
+      const data = await response.json();
+      setIngestionMessage(data.message);
+      
+      // Refresh summary and students after ingestion
+      const summaryResponse = await fetch(`${API_BASE_URL}/staging/summary`);
+      if (summaryResponse.ok) {
+        const summaryData = await summaryResponse.json();
+        setSummary(summaryData);
+      }
+
+      // Refresh students list
+      const studentsResponse = await fetch(`${API_BASE_URL}/staging/students?limit=${itemsPerPage}&offset=0`);
+      if (studentsResponse.ok) {
+        const studentsData = await studentsResponse.json();
+        setStudents(studentsData.students);
+      }
+    } catch (err) {
+      console.error('Ingestion error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to run ingestion');
+    } finally {
+      setIsIngesting(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
@@ -137,6 +181,54 @@ export default function ICEDatabasePage() {
           </div>
         </div>
       </div>
+
+      {/* Ingestion Controls */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Run Ingestion Pipeline</h2>
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="source-dir" className="block text-sm font-medium text-gray-700 mb-2">
+              Source Directory
+            </label>
+            <input
+              id="source-dir"
+              type="text"
+              value={sourceDirectory}
+              onChange={(e) => setSourceDirectory(e.target.value)}
+              disabled={isIngesting}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              placeholder="/path/to/data/directory"
+            />
+          </div>
+          <button
+            onClick={runIngestion}
+            disabled={isIngesting}
+            className="w-full bg-gradient-to-br from-orange-500 to-red-600 text-white font-medium py-3 px-6 rounded-lg hover:from-orange-600 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2"
+          >
+            {isIngesting ? (
+              <>
+                <LoadingSpinner size="sm" />
+                <span>Running Ingestion...</span>
+              </>
+            ) : (
+              <>
+                <Database size={18} />
+                <span>Run Ingestion Pipeline</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Success Message */}
+      {ingestionMessage && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center">
+            <CheckCircle2 size={20} className="text-green-600 mr-3" />
+            <p className="text-sm text-green-600 font-medium">{ingestionMessage}</p>
+          </div>
+        </div>
+      )}
 
       {/* Error Display */}
       {error && (
@@ -243,11 +335,11 @@ export default function ICEDatabasePage() {
               setSelectedProgram(e.target.value);
               setCurrentPage(0);
             }}
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-medium"
           >
-            <option value="">All Programs</option>
+            <option value="" className="text-gray-900">All Programs</option>
             {summary?.programs.map((prog) => (
-              <option key={prog.program} value={prog.program}>
+              <option key={prog.program} value={prog.program} className="text-gray-900">
                 {prog.program} ({prog.count})
               </option>
             ))}
@@ -259,11 +351,11 @@ export default function ICEDatabasePage() {
               setSelectedSource(e.target.value);
               setCurrentPage(0);
             }}
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-medium"
           >
-            <option value="">All Sources</option>
+            <option value="" className="text-gray-900">All Sources</option>
             {summary?.sources.map((src) => (
-              <option key={src.source} value={src.source}>
+              <option key={src.source} value={src.source} className="text-gray-900">
                 {src.source === 'directory+csv' ? 'Enriched' : 'Directory Only'} ({src.count})
               </option>
             ))}

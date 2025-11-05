@@ -636,9 +636,9 @@ class StagingIngestionManager:
 
 def main():
     """Main execution."""
-    # Configuration
-    SOURCE_DIR = "/home/sebastiangarcia/Downloads/data_ingestion/drive-download-20251105T055300Z-1-001"
-    STAGING_DIR = "/home/sebastiangarcia/ice-data-staging"
+    # Configuration - can be overridden by environment variables
+    SOURCE_DIR = os.getenv('SOURCE_DIR', "/home/sebastiangarcia/Downloads/data_ingestion/drive-download-20251105T055300Z-1-001")
+    STAGING_DIR = os.getenv('STAGING_DIR', "/home/sebastiangarcia/ice-data-staging")
     DB_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:224207bB@localhost:5432/leads_project')
     
     # Run ingestion
