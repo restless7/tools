@@ -15,6 +15,7 @@ from typing import Dict, List, Any, Optional
 import psycopg2
 from psycopg2.extras import execute_batch, Json
 from dotenv import load_dotenv
+import pandas as pd
 
 # Add current directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -238,7 +239,7 @@ class EnhancedStagingIngestionManager:
     
     def _parse_date_safely(self, date_value: Any) -> Any:
         """
-        Safely parse date value, returning None if invalid.
+        Enhanced date parsing with multiple format support.
         
         Args:
             date_value: Date value from CSV (string, date object, or None)
@@ -246,27 +247,50 @@ class EnhancedStagingIngestionManager:
         Returns:
             Parsed date or None if invalid
         """
-        if not date_value:
+        if not date_value or pd.isna(date_value):
             return None
         
-        # If already a date object, return it
-        if isinstance(date_value, (datetime, type(None))):
+        # If already a date/datetime/Timestamp object
+        if isinstance(date_value, (datetime, pd.Timestamp)):
+            return date_value.date() if hasattr(date_value, 'date') else date_value
+        
+        if isinstance(date_value, type(date_value)) and hasattr(date_value, 'year'):
             return date_value
         
-        # Try to parse string dates
+        # String processing
         if isinstance(date_value, str):
-            # Skip invalid formats
-            if date_value.strip() == '' or 'nan' in date_value.lower():
+            date_str = date_value.strip()
+            
+            # Skip invalid patterns
+            if not date_str or date_str.lower() in ['nan', 'none', '', 'null']:
                 return None
             
-            # Let PostgreSQL handle standard formats, return None for invalid
+            # Skip age patterns (e.g., "26 años", "30 years old")
+            if 'año' in date_str.lower() or 'year' in date_str.lower():
+                logger.debug(f"Skipping age value: {date_value}")
+                return None
+            
+            # Clean up common formatting issues
+            date_str = date_str.replace('/ ', '/').replace(' /', '/')  # "25/ sep" → "25/sep"
+            date_str = date_str.replace('  ', ' ')  # Double spaces
+            
+            # Try parsing with dateutil (flexible parser)
             try:
-                # Test parse to validate
-                from dateutil import parser
-                parser.parse(date_value, dayfirst=True)
-                return date_value
+                from dateutil import parser as date_parser
+                parsed = date_parser.parse(date_str, dayfirst=True)
+                return parsed.date()
             except:
-                logger.debug(f"Invalid date format, skipping: {date_value}")
+                logger.debug(f"Cannot parse date string: {date_value}")
+                return None
+        
+        # Handle numeric dates (Excel serial numbers)
+        if isinstance(date_value, (int, float)):
+            try:
+                # Excel epoch is 1899-12-30
+                from datetime import timedelta
+                excel_epoch = datetime(1899, 12, 30)
+                return (excel_epoch + timedelta(days=float(date_value))).date()
+            except:
                 return None
         
         return None

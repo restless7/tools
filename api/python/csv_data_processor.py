@@ -24,16 +24,49 @@ class PersonDataProcessor:
     Handles both students and leads.
     """
     
-    # Column mappings (Spanish/English variations)
+    # Column mappings (Spanish/English variations) - Enhanced with more cases
     COLUMN_MAPPINGS = {
-        'full_name': ['NOMBRE COMPLETO', 'Nombre Completo', 'Name', 'Full Name', 'NOMBRE', 'Nombre'],
-        'email': ['CORREO', 'Correo', 'Email', 'E-mail', 'EMAIL', 'Correo electrónico', 'Correo electronico'],
-        'phone': ['CELULAR', 'Celular', 'Teléfono', 'Telefono', 'Phone', 'Móvil', 'Movil', 'Tel'],
-        'address': ['DIRECCION', 'Dirección', 'Address', 'Direccion', 'DIRECCION'],
-        'cedula': ['CEDULA', 'Cédula', 'Cedula', 'ID', 'Document ID', 'CC'],
-        'birth_date': ['FECHA DE NACIMIENTO', 'Fecha de Nacimiento', 'Birth Date', 'Birthday', 'Nacimiento'],
-        'country': ['PAIS', 'País', 'Pais', 'Country', 'COUNTRY'],
-        'city': ['CIUDAD', 'Ciudad', 'City', 'CITY'],
+        'full_name': [
+            'NOMBRE COMPLETO', 'Nombre Completo', 'nombre completo', 
+            'Name', 'Full Name', 'FULL NAME', 'full name',
+            'NOMBRE', 'Nombre', 'nombre', 'NAME', 'name'
+        ],
+        'email': [
+            'CORREO', 'Correo', 'correo',
+            'EMAIL', 'Email', 'email', 'E-mail', 'e-mail', 'E-MAIL',
+            'Correo electrónico', 'Correo electronico', 'CORREO ELECTRONICO',
+            'correo electronico', 'correo electrónico'
+        ],
+        'phone': [
+            'CELULAR', 'Celular', 'celular', 'CEL', 'Cel', 'cel',
+            'TELEFONO', 'Teléfono', 'Telefono', 'telefono', 'teléfono',
+            'PHONE', 'Phone', 'phone',
+            'MOVIL', 'Móvil', 'Movil', 'movil', 'móvil',
+            'TEL', 'Tel', 'tel'
+        ],
+        'address': [
+            'DIRECCION', 'Dirección', 'Direccion', 'direccion', 'dirección',
+            'ADDRESS', 'Address', 'address'
+        ],
+        'cedula': [
+            'CEDULA', 'Cédula', 'Cedula', 'cedula', 'cédula',
+            'ID', 'id', 'CC', 'cc', 'Document ID', 'DOCUMENT ID'
+        ],
+        'birth_date': [
+            'FECHA DE NACIMIENTO', 'Fecha de Nacimiento', 'fecha de nacimiento',
+            'FECHA NACIMIENTO', 'Fecha Nacimiento', 'fecha nacimiento',
+            'Birth Date', 'BIRTH DATE', 'birth date',
+            'Birthday', 'BIRTHDAY', 'birthday',
+            'Nacimiento', 'NACIMIENTO', 'nacimiento'
+        ],
+        'country': [
+            'PAIS', 'País', 'Pais', 'pais', 'país',
+            'COUNTRY', 'Country', 'country'
+        ],
+        'city': [
+            'CIUDAD', 'Ciudad', 'ciudad',
+            'CITY', 'City', 'city'
+        ],
     }
     
     # Status indicators for students vs leads
@@ -63,13 +96,22 @@ class PersonDataProcessor:
         return name
     
     def find_column(self, df: pd.DataFrame, field_name: str) -> Optional[str]:
-        """Find column name for a given field."""
+        """Find column name for a given field with enhanced normalization."""
         possible_names = self.COLUMN_MAPPINGS.get(field_name, [])
-        columns_lower = {col.lower(): col for col in df.columns}
         
+        # Normalize column names: strip whitespace, lowercase, remove accents
+        columns_normalized = {}
+        for col in df.columns:
+            # Strip whitespace and normalize
+            normalized = str(col).strip().lower()
+            normalized = unidecode(normalized)  # Remove accents
+            columns_normalized[normalized] = col
+        
+        # Try to match with normalization
         for possible_name in possible_names:
-            if possible_name.lower() in columns_lower:
-                return columns_lower[possible_name.lower()]
+            normalized_search = unidecode(possible_name.lower().strip())
+            if normalized_search in columns_normalized:
+                return columns_normalized[normalized_search]
         
         return None
     
@@ -120,7 +162,8 @@ class PersonDataProcessor:
                 # Normalize name
                 normalized_name = self.normalize_name(name)
                 
-                if not normalized_name or len(normalized_name) < 3:
+                # Relaxed name filtering: allow 2+ characters
+                if not normalized_name or len(normalized_name) < 2:
                     continue
                 
                 # Extract other fields
@@ -146,8 +189,21 @@ class PersonDataProcessor:
                 # Determine status from sheet name
                 status = self._determine_status_from_sheet(sheet_name, classification)
                 
-                # Create person record
-                person_key = (normalized_name, email or 'no-email')
+                # Better deduplication: use cedula first, then email, then name+phone
+                person_key = None
+                
+                # Priority 1: Cedula (most unique)
+                if cedula:
+                    person_key = ('cedula', cedula)
+                # Priority 2: Email
+                elif email:
+                    person_key = ('email', email)
+                # Priority 3: Name + Phone
+                elif phone:
+                    person_key = ('name_phone', normalized_name, phone)
+                # Priority 4: Name only (creates more duplicates, but captures lead)
+                else:
+                    person_key = ('name_only', normalized_name)
                 
                 if person_key not in self.processed_persons:
                     person_id = str(uuid.uuid4())
@@ -183,6 +239,10 @@ class PersonDataProcessor:
                         existing['phone'] = phone
                     if not existing.get('address') and address:
                         existing['address'] = address
+                    if not existing.get('cedula') and cedula:
+                        existing['cedula'] = cedula
+                    if not existing.get('birth_date') and birth_date:
+                        existing['birth_date'] = birth_date
                 
             except Exception as e:
                 logger.error(f"Error processing row {idx} in {source_file}/{sheet_name}: {e}")
