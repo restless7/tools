@@ -65,6 +65,27 @@ interface ReferenceData {
   created_at: string;
 }
 
+interface Failure {
+  id: number;
+  lead_data: {
+    full_name: string;
+    email?: string;
+    phone?: string;
+    source_file?: string;
+    source_sheet?: string;
+  };
+  error_message: string;
+  error_type: string;
+  attempted_at: string;
+  resolved: boolean;
+}
+
+interface FailuresStats {
+  total_failures: number;
+  by_error_type: Array<{ error_type: string; count: number }>;
+  by_resolution: Array<{ resolved: boolean; count: number }>;
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default function ICEDatabasePage() {
@@ -94,6 +115,12 @@ export default function ICEDatabasePage() {
   const [refDataLoading, setRefDataLoading] = useState(false);
   const [leadsPage, setLeadsPage] = useState(0);
   const [leadsTotal, setLeadsTotal] = useState(0);
+  const [showFailures, setShowFailures] = useState(false);
+  const [failures, setFailures] = useState<Failure[]>([]);
+  const [failuresLoading, setFailuresLoading] = useState(false);
+  const [failuresPage, setFailuresPage] = useState(0);
+  const [failuresTotal, setFailuresTotal] = useState(0);
+  const [failuresStats, setFailuresStats] = useState<FailuresStats | null>(null);
   const itemsPerPage = 20;
 
   // Fetch summary data
@@ -110,7 +137,20 @@ export default function ICEDatabasePage() {
       }
     };
 
+    const fetchFailuresStats = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/staging/failures/stats`);
+        if (response.ok) {
+          const data = await response.json();
+          setFailuresStats(data);
+        }
+      } catch (err) {
+        console.error('Error fetching failures stats:', err);
+      }
+    };
+
     fetchSummary();
+    fetchFailuresStats();
   }, []);
 
   // Fetch students data
@@ -189,6 +229,13 @@ export default function ICEDatabasePage() {
       if (studentsResponse.ok) {
         const studentsData = await studentsResponse.json();
         setStudents(studentsData.students);
+      }
+
+      // Refresh failures stats
+      const failuresResponse = await fetch(`${API_BASE_URL}/staging/failures/stats`);
+      if (failuresResponse.ok) {
+        const failuresData = await failuresResponse.json();
+        setFailuresStats(failuresData);
       }
     } catch (err) {
       console.error('Ingestion error:', err);
@@ -892,6 +939,186 @@ export default function ICEDatabasePage() {
                     </tbody>
                   </table>
                 </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Failures Section (Expandable) - Only show if there are failures */}
+      {failuresStats && failuresStats.total_failures > 0 && (
+        <div className="bg-white rounded-lg border border-red-200 shadow-sm mb-6">
+          <button
+            onClick={async () => {
+              const newShowFailures = !showFailures;
+              setShowFailures(newShowFailures);
+              if (newShowFailures) {
+                setFailuresLoading(true);
+                try {
+                  // Fetch failures data
+                  const response = await fetch(`${API_BASE_URL}/staging/failures?limit=${itemsPerPage}&offset=0`);
+                  if (response.ok) {
+                    const data = await response.json();
+                    setFailures(data.failures);
+                    setFailuresTotal(data.total);
+                    setFailuresPage(0);
+                  }
+                } catch (err) {
+                  console.error('Error fetching failures:', err);
+                } finally {
+                  setFailuresLoading(false);
+                }
+              }
+            }}
+            className="w-full px-6 py-4 flex items-center justify-between hover:bg-red-50 transition-colors"
+          >
+            <div className="flex items-center">
+              <AlertTriangle size={20} className="mr-2 text-red-600" />
+              <h2 className="text-lg font-semibold text-gray-900">Lead Insertion Failures ({failuresStats.total_failures})</h2>
+              <span className="ml-3 text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full font-medium">Debug Mode</span>
+            </div>
+            {showFailures ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+          </button>
+          
+          {showFailures && (
+            <div className="border-t border-gray-200">
+              {failuresLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <LoadingSpinner size="lg" />
+                </div>
+              ) : failures.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No failures found</p>
+                </div>
+              ) : (
+                <>
+                  {/* Error Type Summary */}
+                  <div className="px-6 py-4 bg-red-50 border-b border-red-200">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-2">Error Breakdown</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {failuresStats.by_error_type.map((et) => (
+                        <span key={et.error_type} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          {et.error_type}: {et.count}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Failures Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Error Type</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Error Message</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Attempted</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {failures.map((failure) => (
+                          <tr key={failure.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                              {failure.lead_data.full_name}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-700">
+                              <div className="text-xs">
+                                {failure.lead_data.email && <div>{failure.lead_data.email}</div>}
+                                {failure.lead_data.phone && <div className="text-gray-500">{failure.lead_data.phone}</div>}
+                                {!failure.lead_data.email && !failure.lead_data.phone && (
+                                  <span className="text-gray-400">No contact</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-700">
+                              <div className="max-w-xs truncate text-xs" title={failure.lead_data.source_file}>
+                                {failure.lead_data.source_file?.split('/').pop() || 'N/A'}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {failure.lead_data.source_sheet || ''}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-sm">
+                              <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
+                                {failure.error_type.replace('_', ' ')}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-700">
+                              <div className="max-w-xs truncate" title={failure.error_message}>
+                                {failure.error_message}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-500">
+                              {new Date(failure.attempted_at).toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  {/* Pagination for failures */}
+                  {failuresTotal > itemsPerPage && (
+                    <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                      <p className="text-sm text-gray-600">
+                        Showing {failuresPage * itemsPerPage + 1}-{Math.min((failuresPage + 1) * itemsPerPage, failuresTotal)} of {failuresTotal} failures
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={async () => {
+                            const newPage = failuresPage - 1;
+                            setFailuresPage(newPage);
+                            setFailuresLoading(true);
+                            try {
+                              const response = await fetch(`${API_BASE_URL}/staging/failures?limit=${itemsPerPage}&offset=${newPage * itemsPerPage}`);
+                              if (response.ok) {
+                                const data = await response.json();
+                                setFailures(data.failures);
+                              }
+                            } catch (err) {
+                              console.error('Error fetching failures:', err);
+                            } finally {
+                              setFailuresLoading(false);
+                            }
+                          }}
+                          disabled={failuresPage === 0 || failuresLoading}
+                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Previous
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const newPage = failuresPage + 1;
+                            setFailuresPage(newPage);
+                            setFailuresLoading(true);
+                            try {
+                              const response = await fetch(`${API_BASE_URL}/staging/failures?limit=${itemsPerPage}&offset=${newPage * itemsPerPage}`);
+                              if (response.ok) {
+                                const data = await response.json();
+                                setFailures(data.failures);
+                              }
+                            } catch (err) {
+                              console.error('Error fetching failures:', err);
+                            } finally {
+                              setFailuresLoading(false);
+                            }
+                          }}
+                          disabled={(failuresPage + 1) * itemsPerPage >= failuresTotal || failuresLoading}
+                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

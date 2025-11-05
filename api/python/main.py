@@ -550,6 +550,129 @@ async def get_reference_data(
         logger.error(f"Error getting reference data: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/staging/failures")
+async def get_staging_failures(
+    limit: int = 50,
+    offset: int = 0,
+    error_type: Optional[str] = None,
+    resolved: Optional[bool] = None
+):
+    """
+    Get list of lead insertion failures with optional filters
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Build query with filters
+        query = """
+            SELECT 
+                id, lead_data, error_message, error_type,
+                ingestion_run_id, source_file, source_sheet, row_index,
+                attempted_at, resolved, resolved_at, resolution_notes
+            FROM staging_lead_failures
+            WHERE 1=1
+        """
+        params = []
+        
+        if error_type:
+            query += " AND error_type = %s"
+            params.append(error_type)
+        
+        if resolved is not None:
+            query += " AND resolved = %s"
+            params.append(resolved)
+        
+        query += " ORDER BY attempted_at DESC LIMIT %s OFFSET %s"
+        params.extend([limit, offset])
+        
+        cur.execute(query, tuple(params))
+        failures = cur.fetchall()
+        
+        # Get total count with same filters
+        count_query = "SELECT COUNT(*) as count FROM staging_lead_failures WHERE 1=1"
+        count_params = []
+        
+        if error_type:
+            count_query += " AND error_type = %s"
+            count_params.append(error_type)
+        
+        if resolved is not None:
+            count_query += " AND resolved = %s"
+            count_params.append(resolved)
+        
+        cur.execute(count_query, tuple(count_params))
+        total = cur.fetchone()['count']
+        
+        cur.close()
+        conn.close()
+        
+        return {
+            "failures": [dict(f) for f in failures],
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting staging failures: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/staging/failures/stats")
+async def get_failures_stats():
+    """
+    Get statistics about lead insertion failures
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Get total failures count
+        cur.execute("SELECT COUNT(*) as count FROM staging_lead_failures")
+        total_failures = cur.fetchone()['count']
+        
+        # Get failures by error type
+        cur.execute("""
+            SELECT error_type, COUNT(*) as count
+            FROM staging_lead_failures
+            GROUP BY error_type
+            ORDER BY count DESC
+        """)
+        by_error_type = cur.fetchall()
+        
+        # Get resolved vs unresolved
+        cur.execute("""
+            SELECT resolved, COUNT(*) as count
+            FROM staging_lead_failures
+            GROUP BY resolved
+        """)
+        by_resolution = cur.fetchall()
+        
+        # Get failures by ingestion run
+        cur.execute("""
+            SELECT f.ingestion_run_id, r.run_date, COUNT(*) as failure_count
+            FROM staging_lead_failures f
+            LEFT JOIN staging_ingestion_run r ON f.ingestion_run_id = r.id
+            GROUP BY f.ingestion_run_id, r.run_date
+            ORDER BY r.run_date DESC
+            LIMIT 5
+        """)
+        by_run = cur.fetchall()
+        
+        cur.close()
+        conn.close()
+        
+        return {
+            "total_failures": total_failures,
+            "by_error_type": [dict(r) for r in by_error_type],
+            "by_resolution": [dict(r) for r in by_resolution],
+            "recent_runs": [dict(r) for r in by_run]
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting failures stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/staging/reference-data/{ref_id}")
 async def get_reference_data_details(ref_id: int):
     """

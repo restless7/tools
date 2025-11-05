@@ -299,6 +299,7 @@ class EnhancedStagingIngestionManager:
         """
         Insert lead records into staging_lead table.
         Uses individual transactions to prevent cascade failures.
+        Logs failures to staging_lead_failures table.
         
         Args:
             leads: List of lead dictionaries
@@ -352,6 +353,41 @@ class EnhancedStagingIngestionManager:
                 # Rollback failed transaction to prevent abort state
                 self.conn.rollback()
                 failed_count += 1
+                
+                # Determine error type
+                error_str = str(e)
+                if 'date' in error_str.lower():
+                    error_type = 'DATE_PARSE_ERROR'
+                elif 'duplicate' in error_str.lower() or 'unique' in error_str.lower():
+                    error_type = 'DUPLICATE_ERROR'
+                elif 'null' in error_str.lower() or 'not null' in error_str.lower():
+                    error_type = 'VALIDATION_ERROR'
+                else:
+                    error_type = 'DATABASE_ERROR'
+                
+                # Log failure to staging_lead_failures table
+                try:
+                    with self.conn.cursor() as cur:
+                        cur.execute("""
+                            INSERT INTO staging_lead_failures (
+                                lead_data, error_message, error_type, ingestion_run_id,
+                                source_file, source_sheet, row_index
+                            )
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """, (
+                            Json(lead),  # Store full lead data as JSONB
+                            error_str[:500],  # Truncate long error messages
+                            error_type,
+                            run_id,
+                            lead.get('source_file'),
+                            lead.get('source_sheet'),
+                            lead.get('row_index')
+                        ))
+                    self.conn.commit()
+                except Exception as log_error:
+                    logger.error(f"Failed to log lead failure: {log_error}")
+                    self.conn.rollback()
+                
                 logger.warning(f"Error inserting lead {lead['full_name']}: {e}")
                 continue
         
