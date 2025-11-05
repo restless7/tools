@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Connection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .success { color: green; }
+        .error { color: red; }
+        .loading { color: orange; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 API Connection Test</h1>
+    <div id="status">Testing...</div>
+    <div id="results"></div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8000';
+        const statusDiv = document.getElementById('status');
+        const resultsDiv = document.getElementById('results');
+
+        async function testAPI() {
+            try {
+                statusDiv.innerHTML = '<span class="loading">🔄 Connecting to backend...</span>';
+                
+                const response = await fetch(`${API_BASE_URL}/health`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    statusDiv.innerHTML = '<span class="success">✅ API Connection Successful!</span>';
+                    
+                    resultsDiv.innerHTML = `
+                        <h2>Health Check Results:</h2>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                        
+                        <h2>Service Status:</h2>
+                        <ul>
+                            <li>Excel Converter: <strong>${data.services.excel_converter}</strong></li>
+                            <li>ICE Ingestion: <strong>${data.services.ice_ingestion}</strong></li>
+                        </ul>
+                        
+                        <p>Both services should now show as <strong>active</strong> in the main dashboard!</p>
+                    `;
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<span class="error">❌ Connection Failed: ${error.message}</span>`;
+                
+                resultsDiv.innerHTML = `
+                    <h2>Troubleshooting:</h2>
+                    <ul>
+                        <li>Check if backend is running on port 8000</li>
+                        <li>Verify CORS configuration allows port 3006</li>
+                        <li>Check browser console for additional errors</li>
+                    </ul>
+                `;
+            }
+        }
+
+        // Run test immediately
+        testAPI();
+        
+        // Add a retry button
+        setTimeout(() => {
+            const retryButton = document.createElement('button');
+            retryButton.textContent = '🔄 Retry Test';
+            retryButton.onclick = testAPI;
+            retryButton.style.marginLeft = '10px';
+            statusDiv.appendChild(retryButton);
+        }, 2000);
+    </script>
+</body>
+</html>

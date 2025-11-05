@@ -1,0 +1,55 @@
+# Enterprise Testing Suite - Isolated Requirements
+# =================================================
+
+# Core Testing Framework (Essential)
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-mock>=3.11.0
+pytest-cov>=4.1.0
+pytest-html>=3.2.0
+pytest-timeout>=2.1.0
+
+# Testing Utilities (Safe)
+faker>=19.3.0
+responses>=0.23.0
+httpx>=0.24.0
+
+# Reporting & Analytics (Compatible with Python 3.13)
+jinja2>=3.1.0
+beautifulsoup4>=4.12.0
+pyyaml>=6.0
+
+# Code Quality (Essential)
+flake8>=6.0.0
+black>=23.0.0
+isort>=5.12.0
+
+# System Monitoring (Python 3.13 compatible)
+psutil>=5.9.0
+
+# Configuration
+python-dotenv>=1.0.0
+click>=8.1.0
+
+# Report Generation (Alternative to heavy dependencies)
+weasyprint>=60.0  # For PDF generation
+markdown>=3.4.0   # For markdown reports
+
+# Data Processing (Light alternative to pandas)
+csv  # Built-in Python module
+json  # Built-in Python module
+statistics  # Built-in Python module
+
+# HTTP & API Testing
+requests>=2.31.0
+urllib3>=2.0.0
+
+# Environment & Configuration
+dynaconf>=3.2.0
+
+# Alternative report generation dependencies
+plotly>=5.15.0  # Only if needed for charts
+matplotlib>=3.7.0  # Alternative charting
+
+# Development Tools
+tox>=4.6.0  # Multi-environment testing

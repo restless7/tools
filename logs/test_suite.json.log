@@ -1,0 +1,12 @@
+{"timestamp": "2025-11-04T17:36:01.456354", "level": "INFO", "logger": "dashboard", "message": "Starting Testing Suite Dashboard", "module": "test_logger", "function": "info", "line": 255}
+{"timestamp": "2025-11-04T17:36:01.457387", "level": "INFO", "logger": "dashboard", "message": "Dashboard URL: http://localhost:5000", "module": "test_logger", "function": "info", "line": 255}
+{"timestamp": "2025-11-04T17:36:02.187989", "level": "INFO", "logger": "dashboard", "message": "Starting Testing Suite Dashboard", "module": "test_logger", "function": "info", "line": 255}
+{"timestamp": "2025-11-04T17:36:02.188818", "level": "INFO", "logger": "dashboard", "message": "Dashboard URL: http://localhost:5000", "module": "test_logger", "function": "info", "line": 255}
+{"timestamp": "2025-11-04T17:37:02.889278", "level": "INFO", "logger": "dashboard", "message": "Running tests: venv/bin/pytest tests/ -v --tb=short --cov=ice_pipeline --cov-report=html --cov-report=json --json-report --json-report-file=reports/test_report.json", "module": "test_logger", "function": "info", "line": 255}
+{"timestamp": "2025-11-04T17:37:26.397757", "level": "INFO", "logger": "dashboard", "message": "Test execution completed", "module": "test_logger", "function": "info", "line": 255}
+{"timestamp": "2025-11-04T17:52:08.037945", "level": "INFO", "logger": "dashboard", "message": "Starting Testing Suite Dashboard", "module": "test_logger", "function": "info", "line": 255}
+{"timestamp": "2025-11-04T17:52:08.038516", "level": "INFO", "logger": "dashboard", "message": "Dashboard URL: http://localhost:5000", "module": "test_logger", "function": "info", "line": 255}
+{"timestamp": "2025-11-04T17:52:08.516483", "level": "INFO", "logger": "dashboard", "message": "Starting Testing Suite Dashboard", "module": "test_logger", "function": "info", "line": 255}
+{"timestamp": "2025-11-04T17:52:08.517268", "level": "INFO", "logger": "dashboard", "message": "Dashboard URL: http://localhost:5000", "module": "test_logger", "function": "info", "line": 255}
+{"timestamp": "2025-11-04T18:03:32.561952", "level": "INFO", "logger": "dashboard", "message": "Starting Testing Suite Dashboard", "module": "test_logger", "function": "info", "line": 255}
+{"timestamp": "2025-11-04T18:03:32.562196", "level": "INFO", "logger": "dashboard", "message": "Dashboard URL: http://localhost:5000", "module": "test_logger", "function": "info", "line": 255}

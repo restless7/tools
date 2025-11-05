@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Testing Suite Dashboard | Enterprise Tools Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header .subtitle {
+            color: #666;
+            font-size: 1.2em;
+            margin-bottom: 5px;
+        }
+
+        .header .project-info {
+            color: #888;
+            font-size: 0.95em;
+            margin-top: 10px;
+        }
+
+        /* Main Navigation Tabs */
+        .main-navigation {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 0;
+            flex-wrap: wrap;
+        }
+
+        .main-tab {
+            padding: 15px 35px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px 10px 0 0;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-bottom: none;
+        }
+
+        .main-tab.active {
+            background: white;
+            color: #667eea;
+            border-color: white;
+            border-bottom-color: white;
+        }
+
+        .main-tab:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .main-section {
+            background: white;
+            border-radius: 0 15px 15px 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: none;
+            min-height: 600px;
+        }
+
+        .main-section.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Project Context Styles */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 25px 0;
+        }
+
+        .info-card {
+            background: #f9fafb;
+            padding: 25px;
+            border-radius: 12px;
+            border-left: 5px solid #667eea;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .info-card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-card ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .info-card li {
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+            color: #4b5563;
+            line-height: 1.6;
+            display: flex;
+            align-items: start;
+            gap: 10px;
+        }
+
+        .info-card li:last-child {
+            border-bottom: none;
+        }
+
+        .info-card li::before {
+            content: "▸";
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .philosophy-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 25px 0;
+        }
+
+        .philosophy-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+            transition: transform 0.3s;
+        }
+
+        .philosophy-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .philosophy-card h4 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .philosophy-card ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .philosophy-card li {
+            padding: 8px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .philosophy-card li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+
+        .tech-stack-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .tech-stack-item {
+            background: #f3f4f6;
+            padding: 18px;
+            border-radius: 10px;
+            border-left: 4px solid #10b981;
+        }
+
+        .tech-stack-item strong {
+            color: #10b981;
+            display: block;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .tech-stack-item span {
+            color: #6b7280;
+            font-size: 0.95em;
+            line-height: 1.6;
+        }
+
+        /* Architecture Styles */
+        .architecture-tree {
+            background: #1f2937;
+            color: #10b981;
+            padding: 30px;
+            border-radius: 12px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            line-height: 2;
+            font-size: 0.95em;
+            margin: 20px 0;
+        }
+
+        .architecture-section {
+            margin: 30px 0;
+        }
+
+        .architecture-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        /* Category Styles */
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin: 25px 0;
+        }
+
+        .category-card {
+            background: linear-gradient(to bottom right, #fef3c7, #fde68a);
+            padding: 25px;
+            border-radius: 12px;
+            border-left: 6px solid #f59e0b;
+            box-shadow: 0 3px 10px rgba(245, 158, 11, 0.2);
+        }
+
+        .category-card h3 {
+            color: #f59e0b;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .category-card .category-meta {
+            background: rgba(255, 255, 255, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .category-card .category-meta div {
+            padding: 6px 0;
+            color: #78350f;
+            font-weight: 600;
+        }
+
+        .stats-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+
+        .stat-badge {
+            background: #667eea;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        .stat-badge.success {
+            background: #10b981;
+        }
+
+        .stat-badge.warning {
+            background: #f59e0b;
+        }
+
+        /* Dashboard Styles (existing) */
+        .status-bar {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.05em;
+        }
+
+        .status-running {
+            background: #10b981;
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        .status-idle {
+            background: #6b7280;
+            color: white;
+        }
+
+        .status-passed {
+            background: #10b981;
+            color: white;
+        }
+
+        .status-failed {
+            background: #ef4444;
+            color: white;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            margin: 8px 0;
+            background: #f3f4f6;
+            border-radius: 8px;
+        }
+
+        .stat-label {
+            color: #6b7280;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-value.success {
+            color: #10b981;
+        }
+
+        .stat-value.error {
+            color: #ef4444;
+        }
+
+        .stat-value.warning {
+            color: #f59e0b;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .logs-container {
+            background: #1f2937;
+            color: #10b981;
+            padding: 20px;
+            border-radius: 10px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .log-line {
+            padding: 5px;
+            border-bottom: 1px solid #374151;
+        }
+
+        .log-line:last-child {
+            border-bottom: none;
+        }
+
+        .log-timestamp {
+            color: #6b7280;
+            margin-right: 10px;
+        }
+
+        .log-level-INFO {
+            color: #10b981;
+        }
+
+        .log-level-ERROR {
+            color: #ef4444;
+        }
+
+        .log-level-WARNING {
+            color: #f59e0b;
+        }
+
+        .test-result {
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+
+        .test-passed {
+            background: #d1fae5;
+            border-color: #10b981;
+        }
+
+        .test-failed {
+            background: #fee2e2;
+            border-color: #ef4444;
+        }
+
+        .test-skipped {
+            background: #fef3c7;
+            border-color: #f59e0b;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e5e7eb;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-weight: 600;
+            color: #6b7280;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .coverage-meter {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: conic-gradient(#10b981 0deg, #10b981 var(--coverage-angle), #e5e7eb var(--coverage-angle));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            margin: 20px auto;
+        }
+
+        .coverage-meter::before {
+            content: '';
+            position: absolute;
+            width: 90px;
+            height: 90px;
+            background: white;
+            border-radius: 50%;
+        }
+
+        .coverage-value {
+            position: relative;
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .section-header {
+            color: #667eea;
+            font-size: 2em;
+            margin: 30px 0 20px 0;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .subsection-header {
+            color: #667eea;
+            font-size: 1.6em;
+            margin: 25px 0 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🧪 Enterprise Testing Suite Dashboard</h1>
+            <p class="subtitle">Comprehensive Testing Framework for the ICE Pipeline Tools Package</p>
+            <p class="project-info">Real-time monitoring • Quality assurance • Performance tracking • Compliance validation</p>
+        </div>
+
+        <!-- Main Navigation -->
+        <div class="main-navigation">
+            <button class="main-tab active" onclick="showMainTab('dashboard')">📊 Dashboard</button>
+            <button class="main-tab" onclick="showMainTab('context')">🎯 Project Context</button>
+            <button class="main-tab" onclick="showMainTab('architecture')">🏗️ Architecture</button>
+            <button class="main-tab" onclick="showMainTab('standards')">📋 Standards & Categories</button>
+        </div>
+
+        <!-- DASHBOARD SECTION -->
+        <div id="main-dashboard" class="main-section active">
+            <!-- Status Bar -->
+            <div class="status-bar">
+                <div id="status-badge" class="status-badge status-idle">
+                    <span>✅</span>
+                    <span>Idle</span>
+                </div>
+                <div class="status-badge" style="background: #667eea;">
+                    <span>📊</span>
+                    <span id="tests-count">Loading...</span>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="card">
+                <h2>🎮 Test Controls</h2>
+                <div class="controls">
+                    <button class="btn-primary" onclick="runTests('all')">
+                        <span>▶️</span>
+                        <span>Run All Tests</span>
+                    </button>
+                    <button class="btn-primary" onclick="runTests('unit')">
+                        <span>🔬</span>
+                        <span>Run Unit Tests</span>
+                    </button>
+                    <button class="btn-primary" onclick="runTests('api')">
+                        <span>🌐</span>
+                        <span>Run API Tests</span>
+                    </button>
+                    <button class="btn-danger" onclick="stopTests()">
+                        <span>⏹️</span>
+                        <span>Stop</span>
+                    </button>
+                    <button class="btn-secondary" onclick="refreshData()">
+                        <span>🔄</span>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid">
+                <!-- Test Results -->
+                <div class="card">
+                    <h2>📈 Test Results</h2>
+                    <div class="stat">
+                        <span class="stat-label">Total Tests</span>
+                        <span class="stat-value" id="total-tests">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Passed</span>
+                        <span class="stat-value success" id="passed-tests">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Failed</span>
+                        <span class="stat-value error" id="failed-tests">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Skipped</span>
+                        <span class="stat-value warning" id="skipped-tests">0</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="pass-rate-bar" style="width: 0%;">0%</div>
+                    </div>
+                </div>
+
+                <!-- Coverage -->
+                <div class="card">
+                    <h2>📊 Code Coverage</h2>
+                    <div class="coverage-meter" id="coverage-meter" style="--coverage-angle: 0deg;">
+                        <div class="coverage-value" id="coverage-value">0%</div>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Total Statements</span>
+                        <span class="stat-value" id="statements">-</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Missing Lines</span>
+                        <span class="stat-value error" id="missing">-</span>
+                    </div>
+                </div>
+
+                <!-- Performance -->
+                <div class="card">
+                    <h2>⚡ Performance</h2>
+                    <div class="stat">
+                        <span class="stat-label">Last Run Duration</span>
+                        <span class="stat-value" id="duration">-</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Average per Test</span>
+                        <span class="stat-value" id="avg-duration">-</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Total Runs Today</span>
+                        <span class="stat-value" id="runs-today">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabbed Content -->
+            <div class="card">
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('logs')">📋 Live Logs</button>
+                    <button class="tab" onclick="switchTab('results')">✅ Test Results</button>
+                    <button class="tab" onclick="switchTab('history')">📜 History</button>
+                </div>
+
+                <div id="tab-logs" class="tab-content active">
+                    <div class="logs-container" id="logs-container">
+                        <div class="log-line">
+                            <span class="log-timestamp">[--:--:--]</span>
+                            <span class="log-level-INFO">Waiting for test execution...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-results" class="tab-content">
+                    <div id="results-container">
+                        <p style="color: #6b7280; text-align: center; padding: 40px;">No test results yet. Run tests to see results here.</p>
+                    </div>
+                </div>
+
+                <div id="tab-history" class="tab-content">
+                    <div id="history-container">
+                        <p style="color: #6b7280; text-align: center; padding: 40px;">No test history available yet.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PROJECT CONTEXT SECTION -->
+        <div id="main-context" class="main-section">
+            <h1 class="section-header">🎯 Project Context & Philosophy</h1>
+            
+            <p style="font-size: 1.1em; line-height: 1.8; color: #4b5563; margin-bottom: 30px;">
+                The Enterprise Testing Suite for the Tools Package represents a comprehensive, modular testing framework 
+                built for the <strong>ICE (student application processing) pipeline</strong> within the PlanMaestro ecosystem. 
+                Originally developed for a specific use case, the architecture has been deliberately designed for 
+                <strong>enterprise-scale adoption and cross-project reusability</strong>.
+            </p>
+
+            <h2 class="subsection-header">🛠️ Technology Stack</h2>
+            <div class="tech-stack-grid">
+                <div class="tech-stack-item">
+                    <strong>Testing Framework</strong>
+                    <span>pytest, pytest-asyncio, pytest-cov</span>
+                </div>
+                <div class="tech-stack-item">
+                    <strong>Quality Assurance</strong>
+                    <span>bandit, safety, mypy, flake8, black</span>
+                </div>
+                <div class="tech-stack-item">
+                    <strong>Performance Testing</strong>
+                    <span>locust, psutil, memory-profiler</span>
+                </div>
+                <div class="tech-stack-item">
+                    <strong>Reporting & Visualization</strong>
+                    <span>plotly, pandas, jinja2</span>
+                </div>
+                <div class="tech-stack-item">
+                    <strong>Database Testing</strong>
+                    <span>pytest-postgresql, SQLAlchemy</span>
+                </div>
+                <div class="tech-stack-item">
+                    <strong>Mock Services</strong>
+                    <span>responses, vcrpy, moto</span>
+                </div>
+                <div class="tech-stack-item">
+                    <strong>CI/CD & Automation</strong>
+                    <span>GitHub Actions, Docker</span>
+                </div>
+            </div>
+
+            <h2 class="subsection-header">📊 Quality Standards</h2>
+            <div class="info-grid">
+                <div class="info-card">
+                    <h3>📈 Coverage Thresholds</h3>
+                    <ul>
+                        <li>Unit Tests: <strong>85%</strong> minimum line coverage</li>
+                        <li>Integration Tests: <strong>70%</strong> minimum coverage</li>
+                        <li>Critical Paths: <strong>95%</strong> minimum coverage</li>
+                        <li>Branch Coverage: <strong>75%</strong> minimum coverage</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>⚡ Performance Benchmarks</h3>
+                    <ul>
+                        <li>Unit Test Execution: <strong>&lt; 1 second</strong> per test</li>
+                        <li>Integration Tests: <strong>&lt; 30 seconds</strong> per test</li>
+                        <li>Full Test Suite: <strong>&lt; 5 minutes</strong> total</li>
+                        <li>Memory Usage: <strong>&lt; 1GB</strong> peak consumption</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>🔒 Security Standards</h3>
+                    <ul>
+                        <li><strong>Zero</strong> critical vulnerabilities allowed</li>
+                        <li>Automated dependency scanning</li>
+                        <li>PII protection & detection</li>
+                        <li>Complete audit trail logging</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h2 class="subsection-header">🎯 Testing Philosophy Pillars</h2>
+            <div class="philosophy-grid">
+                <div class="philosophy-card">
+                    <h4>🔧 Modularity First</h4>
+                    <ul>
+                        <li>Every component independently reusable</li>
+                        <li>Clear separation of concerns</li>
+                        <li>Dependency injection patterns</li>
+                        <li>Configurable parameters</li>
+                    </ul>
+                </div>
+
+                <div class="philosophy-card">
+                    <h4>🚀 Enterprise Scalability</h4>
+                    <ul>
+                        <li>MVP to enterprise-scale growth</li>
+                        <li>Matrix testing, parallel execution</li>
+                        <li>Distributed test orchestration</li>
+                        <li>Performance at scale</li>
+                    </ul>
+                </div>
+
+                <div class="philosophy-card">
+                    <h4>✨ Quality-Driven Development</h4>
+                    <ul>
+                        <li>Quality gates prevent regression</li>
+                        <li>Comprehensive quality metrics</li>
+                        <li>Automated thresholds</li>
+                        <li>Trend analysis & predictions</li>
+                    </ul>
+                </div>
+
+                <div class="philosophy-card">
+                    <h4>💎 Developer Experience</h4>
+                    <ul>
+                        <li>Enhance, not hinder workflow</li>
+                        <li>Simple commands, clear feedback</li>
+                        <li>Automated reporting</li>
+                        <li>Reduced friction, faster cycles</li>
+                    </ul>
+                </div>
+
+                <div class="philosophy-card">
+                    <h4>🛡️ Security by Design</h4>
+                    <ul>
+                        <li>Built-in, not bolted-on</li>
+                        <li>PII detection, audit trails</li>
+                        <li>Security scanning integrated</li>
+                        <li>Compliance checking automated</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- ARCHITECTURE SECTION -->
+        <div id="main-architecture" class="main-section">
+            <h1 class="section-header">🏗️ Architecture Overview</h1>
+
+            <p style="font-size: 1.1em; line-height: 1.8; color: #4b5563; margin-bottom: 30px;">
+                The Enterprise Testing Suite implements a sophisticated, multi-layered architecture designed for 
+                scalability, maintainability, and cross-organizational adoption. Every component follows modular 
+                design principles for maximum reusability.
+            </p>
+
+            <div class="info-grid">
+                <div class="info-card">
+                    <h3>🔧 Core Components</h3>
+                    <ul>
+                        <li><strong>conftest.py:</strong> Enterprise-grade fixtures & configuration</li>
+                        <li><strong>pytest.ini:</strong> 25+ organized test markers</li>
+                        <li><strong>Test Categories:</strong> Multi-dimensional organization</li>
+                        <li><strong>Mock Services:</strong> External API mocking framework</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>🤖 Automation Features</h3>
+                    <ul>
+                        <li><strong>Matrix Testing:</strong> Multiple Python versions & environments</li>
+                        <li><strong>Parallel Execution:</strong> Optimized resource utilization</li>
+                        <li><strong>Intelligent Selection:</strong> Run only relevant tests</li>
+                        <li><strong>Quality Gates:</strong> Automated pass/fail criteria</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>📊 Reporting Capabilities</h3>
+                    <ul>
+                        <li><strong>Interactive Charts:</strong> Plotly-based visualizations</li>
+                        <li><strong>Trend Analysis:</strong> Historical performance tracking</li>
+                        <li><strong>Quality Metrics:</strong> Comprehensive health indicators</li>
+                        <li><strong>Export Formats:</strong> HTML, JSON, PDF reports</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- STANDARDS & CATEGORIES SECTION -->
+        <div id="main-standards" class="main-section">
+            <h1 class="section-header">📋 Standards & Test Categories</h1>
+
+            <p style="font-size: 1.1em; line-height: 1.8; color: #4b5563; margin-bottom: 30px;">
+                The test suite employs a <strong>multi-dimensional categorization system</strong> that organizes tests 
+                by functionality, priority, characteristics, environment, and domain. This enables precise test selection, 
+                parallel execution, and comprehensive quality assurance.
+            </p>
+
+            <h2 class="subsection-header">📊 Current Test Suite Status</h2>
+            <div class="stats-row">
+                <div class="stat-badge success">150 Total Tests</div>
+                <div class="stat-badge success">92% Pass Rate</div>
+                <div class="stat-badge success">78% Coverage</div>
+                <div class="stat-badge warning">8 Failures</div>
+                <div class="stat-badge warning">4 Errors</div>
+            </div>
+
+            <h2 class="subsection-header">🔍 Category Deep Dive</h2>
+            
+            <div class="category-grid">
+                <!-- Unit Tests -->
+                <div class="category-card">
+                    <h3>🔬 Unit Tests</h3>
+                    <div class="category-meta">
+                        <div><strong>Location:</strong> tests/unit/</div>
+                        <div><strong>Count:</strong> 74 tests</div>
+                        <div><strong>Coverage Target:</strong> 85% line coverage</div>
+                        <div><strong>Execution Time:</strong> &lt; 1 second per test</div>
+                    </div>
+                    <p style="margin: 15px 0; color: #78350f; line-height: 1.6;">
+                        <strong>Purpose:</strong> Validate individual components in complete isolation 
+                        with all external dependencies mocked.
+                    </p>
+                    <div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 6px; margin-top: 10px;">
+                        <strong>Structure:</strong>
+                        <ul style="margin-top: 8px; padding-left: 20px;">
+                            <li>core/ - Core business logic</li>
+                            <li>pipeline/ - Pipeline-specific functionality</li>
+                            <li>api/ - API layer components</li>
+                            <li>utils/ - Utility functions</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Integration Tests -->
+                <div class="category-card">
+                    <h3>🔗 Integration Tests</h3>
+                    <div class="category-meta">
+                        <div><strong>Location:</strong> tests/integration/</div>
+                        <div><strong>Count:</strong> 17 tests</div>
+                        <div><strong>Coverage Target:</strong> 70% integration paths</div>
+                        <div><strong>Execution Time:</strong> &lt; 30 seconds per test</div>
+                    </div>
+                    <p style="margin: 15px 0; color: #78350f; line-height: 1.6;">
+                        <strong>Purpose:</strong> Validate component interactions, data flow, 
+                        and integration between different system parts.
+                    </p>
+                    <div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 6px; margin-top: 10px;">
+                        <strong>Key Integration Points:</strong>
+                        <ul style="margin-top: 8px; padding-left: 20px;">
+                            <li>Google Drive ↔ Database</li>
+                            <li>Data Pipeline ↔ Processing</li>
+                            <li>Authentication ↔ Authorization</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- API Tests -->
+                <div class="category-card">
+                    <h3>🌐 API Tests</h3>
+                    <div class="category-meta">
+                        <div><strong>Location:</strong> tests/api/</div>
+                        <div><strong>Count:</strong> 28 tests</div>
+                        <div><strong>Coverage Target:</strong> 100% endpoint coverage</div>
+                        <div><strong>Execution Time:</strong> &lt; 5 seconds per test</div>
+                    </div>
+                    <p style="margin: 15px 0; color: #78350f; line-height: 1.6;">
+                        <strong>Purpose:</strong> Validate API contracts, endpoint behavior, 
+                        authentication, and response formats.
+                    </p>
+                    <div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 6px; margin-top: 10px;">
+                        <strong>Testing Approach:</strong>
+                        <ul style="margin-top: 8px; padding-left: 20px;">
+                            <li>FastAPI TestClient</li>
+                            <li>Real authentication flows</li>
+                            <li>Request/response validation</li>
+                            <li>Error handling scenarios</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Performance Tests -->
+                <div class="category-card">
+                    <h3>⚡ Performance Tests</h3>
+                    <div class="category-meta">
+                        <div><strong>Location:</strong> tests/performance/</div>
+                        <div><strong>Count:</strong> 14 tests</div>
+                        <div><strong>Target:</strong> No regression in response times</div>
+                        <div><strong>Execution Time:</strong> Configurable (default: 60s)</div>
+                    </div>
+                    <p style="margin: 15px 0; color: #78350f; line-height: 1.6;">
+                        <strong>Purpose:</strong> Load testing, performance benchmarking, 
+                        and resource consumption monitoring.
+                    </p>
+                    <div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 6px; margin-top: 10px;">
+                        <strong>Monitored Metrics:</strong>
+                        <ul style="margin-top: 8px; padding-left: 20px;">
+                            <li>Response time & throughput</li>
+                            <li>Memory usage patterns</li>
+                            <li>CPU utilization</li>
+                            <li>Database query performance</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- E2E Tests -->
+                <div class="category-card">
+                    <h3>🎯 End-to-End Tests</h3>
+                    <div class="category-meta">
+                        <div><strong>Location:</strong> tests/e2e/</div>
+                        <div><strong>Count:</strong> Workflow-based</div>
+                        <div><strong>Coverage:</strong> Critical user journeys</div>
+                        <div><strong>Execution Time:</strong> &lt; 10 minutes per test</div>
+                    </div>
+                    <p style="margin: 15px 0; color: #78350f; line-height: 1.6;">
+                        <strong>Purpose:</strong> Validate complete user workflows from 
+                        start to finish with full system integration.
+                    </p>
+                    <div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 6px; margin-top: 10px;">
+                        <strong>Example Workflows:</strong>
+                        <ul style="margin-top: 8px; padding-left: 20px;">
+                            <li>File upload → Processing → Export</li>
+                            <li>Student application lifecycle</li>
+                            <li>Data ingestion pipeline</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Business Logic Tests -->
+                <div class="category-card">
+                    <h3>💼 Business Logic Tests</h3>
+                    <div class="category-meta">
+                        <div><strong>Location:</strong> tests/business/</div>
+                        <div><strong>Focus:</strong> Domain-specific rules</div>
+                        <div><strong>Coverage:</strong> Critical business paths</div>
+                        <div><strong>Execution Time:</strong> Varies by complexity</div>
+                    </div>
+                    <p style="margin: 15px 0; color: #78350f; line-height: 1.6;">
+                        <strong>Purpose:</strong> Validate business rules, data transformations, 
+                        and domain-specific logic.
+                    </p>
+                    <div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 6px; margin-top: 10px;">
+                        <strong>Key Areas:</strong>
+                        <ul style="margin-top: 8px; padding-left: 20px;">
+                            <li>Data validation rules</li>
+                            <li>Business calculations</li>
+                            <li>Workflow state machines</li>
+                            <li>Domain constraints</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <h2 class="subsection-header">🏷️ Test Markers & Organization</h2>
+            <div class="info-grid">
+                <div class="info-card">
+                    <h3>By Priority</h3>
+                    <ul>
+                        <li><strong>smoke:</strong> Critical smoke tests</li>
+                        <li><strong>regression:</strong> Regression test suite</li>
+                        <li><strong>acceptance:</strong> Acceptance criteria</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>By Characteristics</h3>
+                    <ul>
+                        <li><strong>slow:</strong> Long-running tests</li>
+                        <li><strong>fast:</strong> Quick validation tests</li>
+                        <li><strong>flaky:</strong> Tests under observation</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>By Environment</h3>
+                    <ul>
+                        <li><strong>local:</strong> Local development</li>
+                        <li><strong>ci:</strong> CI/CD pipeline</li>
+                        <li><strong>staging:</strong> Staging environment</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let updateInterval;
+        let logsEventSource;
+
+        // Initialize
+        function init() {
+            refreshData();
+            connectLogsStream();
+            startAutoRefresh();
+        }
+
+        // Show main tab
+        function showMainTab(tabName) {
+            document.querySelectorAll('.main-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            document.querySelectorAll('.main-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.getElementById(`main-${tabName}`).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Run tests
+        async function runTests(testType) {
+            try {
+                const response = await fetch('/api/tests/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ test_type: testType })
+                });
+                
+                if (response.ok) {
+                    updateStatus();
+                }
+            } catch (error) {
+                console.error('Failed to run tests:', error);
+            }
+        }
+
+        // Stop tests
+        async function stopTests() {
+            try {
+                await fetch('/api/tests/stop', { method: 'POST' });
+                updateStatus();
+            } catch (error) {
+                console.error('Failed to stop tests:', error);
+            }
+        }
+
+        // Refresh all data
+        function refreshData() {
+            updateStatus();
+            updateResults();
+            updateCoverage();
+            updateHistory();
+        }
+
+        // Update status
+        async function updateStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                const badge = document.getElementById('status-badge');
+                if (data.running) {
+                    badge.className = 'status-badge status-running';
+                    badge.innerHTML = '<span class="loading"></span><span>Running Tests...</span>';
+                } else {
+                    badge.className = 'status-badge status-idle';
+                    badge.innerHTML = '<span>✅</span><span>Idle</span>';
+                }
+            } catch (error) {
+                console.error('Failed to update status:', error);
+            }
+        }
+
+        // Update results
+        async function updateResults() {
+            try {
+                const response = await fetch('/api/tests/results');
+                const data = await response.json();
+                
+                const summary = data.summary;
+                document.getElementById('total-tests').textContent = summary.total;
+                document.getElementById('passed-tests').textContent = summary.passed;
+                document.getElementById('failed-tests').textContent = summary.failed;
+                document.getElementById('skipped-tests').textContent = summary.skipped;
+                document.getElementById('tests-count').textContent = `${summary.total} Tests`;
+                
+                const passRate = summary.total > 0 ? (summary.passed / summary.total * 100).toFixed(1) : 0;
+                const passBar = document.getElementById('pass-rate-bar');
+                passBar.style.width = passRate + '%';
+                passBar.textContent = passRate + '%';
+                
+                if (data.tests && data.tests.length > 0) {
+                    const container = document.getElementById('results-container');
+                    container.innerHTML = data.tests.map(test => `
+                        <div class="test-result test-${test.outcome}">
+                            <strong>${test.outcome === 'passed' ? '✅' : test.outcome === 'failed' ? '❌' : '⚠️'} ${test.nodeid}</strong>
+                            ${test.duration ? `<span style="float: right;">${test.duration.toFixed(2)}s</span>` : ''}
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Failed to update results:', error);
+            }
+        }
+
+        // Update coverage
+        async function updateCoverage() {
+            try {
+                const response = await fetch('/api/coverage');
+                const data = await response.json();
+                
+                if (data.totals) {
+                    const coverage = data.totals.percent_covered.toFixed(1);
+                    document.getElementById('coverage-value').textContent = coverage + '%';
+                    
+                    const meter = document.getElementById('coverage-meter');
+                    const angle = (coverage / 100) * 360;
+                    meter.style.setProperty('--coverage-angle', angle + 'deg');
+                    
+                    document.getElementById('statements').textContent = data.totals.num_statements;
+                    document.getElementById('missing').textContent = data.totals.missing_lines;
+                }
+            } catch (error) {
+                // Coverage not yet available
+            }
+        }
+
+        // Update history
+        async function updateHistory() {
+            try {
+                const response = await fetch('/api/history');
+                const data = await response.json();
+                
+                if (data.runs && data.runs.length > 0) {
+                    const container = document.getElementById('history-container');
+                    container.innerHTML = data.runs.reverse().map(run => `
+                        <div class="stat">
+                            <span class="stat-label">${new Date(run.timestamp).toLocaleString()}</span>
+                            <span class="stat-value">
+                                ${run.passed}/${run.tests} passed (${run.duration.toFixed(1)}s)
+                            </span>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Failed to update history:', error);
+            }
+        }
+
+        // Connect to logs stream
+        function connectLogsStream() {
+            if (logsEventSource) {
+                logsEventSource.close();
+            }
+            
+            logsEventSource = new EventSource('/api/logs/stream');
+            
+            logsEventSource.onmessage = function(event) {
+                const log = JSON.parse(event.data);
+                const logsContainer = document.getElementById('logs-container');
+                
+                const logLine = document.createElement('div');
+                logLine.className = 'log-line';
+                
+                const timestamp = new Date(log.timestamp).toLocaleTimeString();
+                logLine.innerHTML = `
+                    <span class="log-timestamp">[${timestamp}]</span>
+                    <span class="log-level-${log.level}">${log.message}</span>
+                `;
+                
+                logsContainer.appendChild(logLine);
+                logsContainer.scrollTop = logsContainer.scrollHeight;
+                
+                while (logsContainer.children.length > 100) {
+                    logsContainer.removeChild(logsContainer.firstChild);
+                }
+            };
+        }
+
+        // Switch tabs
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+        }
+
+        // Auto refresh
+        function startAutoRefresh() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+            updateInterval = setInterval(refreshData, 3000);
+        }
+
+        // Initialize on load
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

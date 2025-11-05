@@ -1,0 +1,577 @@
+name: Tools Package - Enterprise Testing Suite
+
+on:
+  push:
+    branches: [ main, develop, 'feature/*', 'hotfix/*' ]
+    paths:
+      - 'packages/tools/**'
+      - '.github/workflows/test-suite.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'packages/tools/**'
+  schedule:
+    # Run comprehensive tests daily at 6 AM UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      test_level:
+        description: 'Test level to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - unit
+          - integration
+          - api
+          - e2e
+          - performance
+          - stress
+          - all
+      coverage_threshold:
+        description: 'Coverage threshold percentage'
+        required: false
+        default: '80'
+        type: string
+
+env:
+  PYTHON_VERSION: '3.9'
+  PACKAGE_PATH: 'packages/tools'
+  TEST_RESULTS_PATH: 'test-results'
+  COVERAGE_THRESHOLD: ${{ github.event.inputs.coverage_threshold || '80' }}
+  
+jobs:
+  # Pre-flight checks and environment validation
+  pre-flight:
+    name: Pre-flight Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      test-level: ${{ steps.determine-tests.outputs.test-level }}
+      package-changed: ${{ steps.changes.outputs.package-changed }}
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 2
+    
+    - name: Check package changes
+      id: changes
+      run: |
+        if git diff --name-only HEAD~1 HEAD | grep -q "^${{ env.PACKAGE_PATH }}/"; then
+          echo "package-changed=true" >> $GITHUB_OUTPUT
+        else
+          echo "package-changed=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Determine test level
+      id: determine-tests
+      run: |
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          echo "test-level=${{ github.event.inputs.test_level }}" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.event_name }}" == "schedule" ]]; then
+          echo "test-level=all" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          echo "test-level=all" >> $GITHUB_OUTPUT
+        else
+          echo "test-level=unit,integration,api" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Validate test environment
+      run: |
+        echo "🔍 Environment Validation"
+        echo "Python Version: ${{ env.PYTHON_VERSION }}"
+        echo "Package Path: ${{ env.PACKAGE_PATH }}"
+        echo "Test Level: ${{ steps.determine-tests.outputs.test-level }}"
+        echo "Coverage Threshold: ${{ env.COVERAGE_THRESHOLD }}%"
+
+  # Static analysis and security scanning
+  static-analysis:
+    name: Static Analysis & Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: pre-flight
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+    
+    - name: Install analysis dependencies
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-test.txt
+        pip install bandit safety mypy flake8 black isort
+    
+    - name: Code formatting check
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        echo "🎨 Checking code formatting..."
+        black --check --diff .
+        isort --check-only --diff .
+    
+    - name: Linting
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        echo "🔍 Running linting..."
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Type checking
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        echo "🏷️ Running type checks..."
+        mypy --install-types --non-interactive . || true
+    
+    - name: Security scanning
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        echo "🔒 Running security scans..."
+        bandit -r . -f json -o bandit-report.json || true
+        bandit -r . -ll
+        safety check --json --output safety-report.json || true
+        safety check
+    
+    - name: Upload security reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-analysis-reports
+        path: |
+          ${{ env.PACKAGE_PATH }}/bandit-report.json
+          ${{ env.PACKAGE_PATH }}/safety-report.json
+
+  # Modular unit testing with matrix strategy
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [pre-flight, static-analysis]
+    if: contains(needs.pre-flight.outputs.test-level, 'unit') || contains(needs.pre-flight.outputs.test-level, 'all')
+    
+    strategy:
+      matrix:
+        test-group: [core, pipeline, api, utils]
+        python-version: ['3.9', '3.10', '3.11']
+      fail-fast: false
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+    
+    - name: Install dependencies
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+    
+    - name: Run unit tests - ${{ matrix.test-group }}
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        pytest tests/unit/${{ matrix.test-group }}/ \
+          --cov=ice_pipeline \
+          --cov-report=xml:coverage-${{ matrix.test-group }}-py${{ matrix.python-version }}.xml \
+          --cov-report=html:htmlcov-${{ matrix.test-group }}-py${{ matrix.python-version }}/ \
+          --cov-fail-under=${{ env.COVERAGE_THRESHOLD }} \
+          --junit-xml=${{ env.TEST_RESULTS_PATH }}/unit-${{ matrix.test-group }}-py${{ matrix.python-version }}.xml \
+          --tb=short \
+          --strict-markers \
+          -v
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: unit-test-results-${{ matrix.test-group }}-py${{ matrix.python-version }}
+        path: |
+          ${{ env.PACKAGE_PATH }}/${{ env.TEST_RESULTS_PATH }}/unit-${{ matrix.test-group }}-py${{ matrix.python-version }}.xml
+          ${{ env.PACKAGE_PATH }}/coverage-${{ matrix.test-group }}-py${{ matrix.python-version }}.xml
+          ${{ env.PACKAGE_PATH }}/htmlcov-${{ matrix.test-group }}-py${{ matrix.python-version }}/
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ${{ env.PACKAGE_PATH }}/coverage-${{ matrix.test-group }}-py${{ matrix.python-version }}.xml
+        flags: unit-tests,${{ matrix.test-group }},py${{ matrix.python-version }}
+        name: unit-${{ matrix.test-group }}-py${{ matrix.python-version }}
+
+  # Integration testing with services
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [pre-flight, unit-tests]
+    if: contains(needs.pre-flight.outputs.test-level, 'integration') || contains(needs.pre-flight.outputs.test-level, 'all')
+    
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: ice_test
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+    
+    - name: Install dependencies
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+        pip install psycopg2-binary redis
+    
+    - name: Initialize test services
+      env:
+        DATABASE_URL: postgresql://postgres:testpass@localhost:5432/ice_test
+        REDIS_URL: redis://localhost:6379/0
+      run: |
+        # Wait for services to be ready
+        until pg_isready -h localhost -p 5432; do
+          echo "Waiting for PostgreSQL..."
+          sleep 2
+        done
+        
+        # Initialize database schema
+        cd ${{ env.PACKAGE_PATH }}
+        python scripts/init_test_db.py
+    
+    - name: Run integration tests
+      working-directory: ${{ env.PACKAGE_PATH }}
+      env:
+        DATABASE_URL: postgresql://postgres:testpass@localhost:5432/ice_test
+        REDIS_URL: redis://localhost:6379/0
+        TEST_ENVIRONMENT: integration
+      run: |
+        pytest tests/integration/ \
+          --junit-xml=${{ env.TEST_RESULTS_PATH }}/integration-tests.xml \
+          --tb=short \
+          --strict-markers \
+          -v
+    
+    - name: Upload integration test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: integration-test-results
+        path: ${{ env.PACKAGE_PATH }}/${{ env.TEST_RESULTS_PATH }}/integration-tests.xml
+
+  # API testing
+  api-tests:
+    name: API Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [pre-flight, unit-tests]
+    if: contains(needs.pre-flight.outputs.test-level, 'api') || contains(needs.pre-flight.outputs.test-level, 'all')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+    
+    - name: Install dependencies
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+        pip install httpx fastapi-testclient
+    
+    - name: Run API tests
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        pytest tests/api/ \
+          --junit-xml=${{ env.TEST_RESULTS_PATH }}/api-tests.xml \
+          --tb=short \
+          --strict-markers \
+          -v
+    
+    - name: Upload API test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: api-test-results
+        path: ${{ env.PACKAGE_PATH }}/${{ env.TEST_RESULTS_PATH }}/api-tests.xml
+
+  # End-to-end testing
+  e2e-tests:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    needs: [pre-flight, integration-tests, api-tests]
+    if: contains(needs.pre-flight.outputs.test-level, 'e2e') || contains(needs.pre-flight.outputs.test-level, 'all')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+    
+    - name: Install dependencies
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+    
+    - name: Run end-to-end tests
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        pytest tests/e2e/ \
+          --junit-xml=${{ env.TEST_RESULTS_PATH }}/e2e-tests.xml \
+          --tb=short \
+          --strict-markers \
+          --timeout=600 \
+          -v
+    
+    - name: Upload E2E test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: e2e-test-results
+        path: ${{ env.PACKAGE_PATH }}/${{ env.TEST_RESULTS_PATH }}/e2e-tests.xml
+
+  # Performance testing
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    needs: [pre-flight, integration-tests]
+    if: contains(needs.pre-flight.outputs.test-level, 'performance') || contains(needs.pre-flight.outputs.test-level, 'all')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+    
+    - name: Install dependencies
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+        pip install psutil memory_profiler
+    
+    - name: Run performance tests
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        pytest tests/performance/ \
+          -m "not stress" \
+          --junit-xml=${{ env.TEST_RESULTS_PATH }}/performance-tests.xml \
+          --tb=short \
+          --strict-markers \
+          --timeout=300 \
+          -v
+    
+    - name: Generate performance report
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        python scripts/generate_performance_report.py \
+          --input ${{ env.TEST_RESULTS_PATH }}/performance-tests.xml \
+          --output ${{ env.TEST_RESULTS_PATH }}/performance-report.html
+    
+    - name: Upload performance test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: performance-test-results
+        path: |
+          ${{ env.PACKAGE_PATH }}/${{ env.TEST_RESULTS_PATH }}/performance-tests.xml
+          ${{ env.PACKAGE_PATH }}/${{ env.TEST_RESULTS_PATH }}/performance-report.html
+
+  # Stress testing (optional, long-running)
+  stress-tests:
+    name: Stress Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: [pre-flight, performance-tests]
+    if: |
+      (contains(needs.pre-flight.outputs.test-level, 'stress') || 
+       contains(needs.pre-flight.outputs.test-level, 'all')) &&
+      (github.event_name == 'schedule' || 
+       contains(github.event.head_commit.message, '[stress-test]') ||
+       github.event_name == 'workflow_dispatch')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+    
+    - name: Install dependencies
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+        pip install psutil memory_profiler
+    
+    - name: Run stress tests
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        pytest tests/performance/ \
+          -m "stress" \
+          --junit-xml=${{ env.TEST_RESULTS_PATH }}/stress-tests.xml \
+          --tb=short \
+          --strict-markers \
+          --timeout=1800 \
+          -v
+    
+    - name: Upload stress test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: stress-test-results
+        path: ${{ env.PACKAGE_PATH }}/${{ env.TEST_RESULTS_PATH }}/stress-tests.xml
+
+  # Comprehensive quality gates and reporting
+  quality-gates:
+    name: Quality Gates & Enterprise Reporting
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [static-analysis, unit-tests, integration-tests, api-tests, e2e-tests, performance-tests]
+    if: always()
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+    
+    - name: Install reporting dependencies
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        python -m pip install --upgrade pip
+        pip install jinja2 pandas plotly junit-xml beautifulsoup4
+    
+    - name: Download all test artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts/
+    
+    - name: Generate enterprise test report
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        python scripts/enterprise_test_reporter.py \
+          --artifacts-dir ../../artifacts/ \
+          --output-dir reports/ \
+          --format html,json,pdf \
+          --include-metrics \
+          --include-trends
+    
+    - name: Analyze test quality metrics
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        python scripts/analyze_test_quality.py \
+          --artifacts-dir ../../artifacts/ \
+          --threshold-file quality_thresholds.yml \
+          --output quality_analysis.json
+    
+    - name: Check enterprise quality gates
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        python scripts/check_quality_gates.py \
+          --analysis-file quality_analysis.json \
+          --gate-config enterprise_gates.yml
+    
+    - name: Upload enterprise reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: enterprise-test-reports
+        path: |
+          ${{ env.PACKAGE_PATH }}/reports/
+          ${{ env.PACKAGE_PATH }}/quality_analysis.json
+    
+    - name: Generate test summary
+      run: |
+        echo "## 📊 Enterprise Test Suite Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        cd ${{ env.PACKAGE_PATH }}
+        python scripts/generate_github_summary.py \
+          --analysis-file quality_analysis.json >> $GITHUB_STEP_SUMMARY
+
+  # Enterprise dashboard update
+  dashboard-update:
+    name: Update Enterprise Dashboard
+    runs-on: ubuntu-latest
+    needs: [quality-gates]
+    if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download enterprise reports
+      uses: actions/download-artifact@v3
+      with:
+        name: enterprise-test-reports
+        path: reports/
+    
+    - name: Update enterprise dashboard
+      working-directory: ${{ env.PACKAGE_PATH }}
+      run: |
+        python scripts/update_enterprise_dashboard.py \
+          --reports-dir ../../reports/ \
+          --dashboard-config dashboard_config.yml \
+          --push-to-frontend
+    
+    - name: Notify stakeholders
+      if: failure()
+      run: |
+        echo "🚨 Enterprise quality gates failed. Stakeholders should be notified."
+        # Integration with notification systems (Slack, Teams, email)
+        python ${{ env.PACKAGE_PATH }}/scripts/notify_stakeholders.py \
+          --event "quality_gate_failure" \
+          --report-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

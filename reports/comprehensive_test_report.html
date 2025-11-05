@@ -1,0 +1,379 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏢 ICE Testing Suite - Enterprise Test Analytics Report</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+        .header .timestamp {
+            opacity: 0.9;
+            margin-top: 10px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .failure {
+            background-color: #f44336;
+            color: white;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px;
+        }
+        .metric-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            border-left: 4px solid #667eea;
+        }
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .metric-label {
+            color: #666;
+            margin-top: 5px;
+        }
+        .section {
+            padding: 20px 30px;
+            border-bottom: 1px solid #eee;
+        }
+        .section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .category-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .coverage-bar {
+            background: #e0e0e0;
+            border-radius: 10px;
+            height: 20px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .coverage-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4444, #ffaa00, #44ff44);
+            transition: width 0.3s ease;
+        }
+        .recommendations {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .recommendation {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+        }
+        .quality-gates {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .gate {
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .gate.pass {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .gate.fail {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .performance-chart {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✅ ICE Testing Suite</h1>
+            <div class="status-badge success">
+                All Tests Passing
+            </div>
+            <div class="timestamp">Generated: 2025-10-07T05:33:16.825834+00:00</div>
+        </div>
+        
+        <div class="metrics">
+            <div class="metric-card">
+                <div class="metric-value">90</div>
+                <div class="metric-label">Total Tests</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">90</div>
+                <div class="metric-label">Passed</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">0</div>
+                <div class="metric-label">Failed</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">78.3%</div>
+                <div class="metric-label">Coverage</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">3.5s</div>
+                <div class="metric-label">Execution Time</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">100.0%</div>
+                <div class="metric-label">Pass Rate</div>
+            </div>
+        </div>
+        
+        
+        <div class="section">
+            <h2>🖥️ System Performance</h2>
+            <div class="metrics">
+                <div class="metric-card">
+                    <div class="metric-value">14.1%</div>
+                    <div class="metric-label">CPU Usage</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">23379MB</div>
+                    <div class="metric-label">Memory Used</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">73.7%</div>
+                    <div class="metric-label">Memory %</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">2.99</div>
+                    <div class="metric-label">Load Average</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>📊 Code Analytics</h2>
+            <div class="metrics">
+                <div class="metric-card">
+                    <div class="metric-value">17</div>
+                    <div class="metric-label">Total Files</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">11</div>
+                    <div class="metric-label">Test Files</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">7,270</div>
+                    <div class="metric-label">Lines of Code</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">380.8%</div>
+                    <div class="metric-label">Test to Code Ratio</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">0</div>
+                    <div class="metric-label">Recent Commits</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">0min</div>
+                    <div class="metric-label">Technical Debt</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>⚡ Test Velocity & Performance</h2>
+            <div class="metrics">
+                <div class="metric-card">
+                    <div class="metric-value">25.8</div>
+                    <div class="metric-label">Tests per Second</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">39ms</div>
+                    <div class="metric-label">Avg Test Duration</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">Excellent</div>
+                    <div class="metric-label">Performance Trend</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">6.2%</div>
+                    <div class="metric-label">Parallelization Efficiency</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>📈 Quality Insights</h2>
+            <div class="metrics">
+                <div class="metric-card">
+                    <div class="metric-value" style="color: #ff9800">MEDIUM</div>
+                    <div class="metric-label">Risk Assessment</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">100.0</div>
+                    <div class="metric-label">Stability Score</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">83.0</div>
+                    <div class="metric-label">Maintainability</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">Good</div>
+                    <div class="metric-label">Coverage Trend</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">100.0%</div>
+                    <div class="metric-label">Reliability Index</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">100.0%</div>
+                    <div class="metric-label">Test Balance</div>
+                </div>
+            </div>
+        </div>
+        
+        
+        <div class="section">
+            <h2>🎯 Quality Gates</h2>
+            <div class="quality-gates">
+                
+            <div class="gate pass">
+                ✅ All Tests Passing
+            </div>
+            
+            <div class="gate pass">
+                ✅ Coverage Threshold
+            </div>
+            
+            <div class="gate pass">
+                ✅ Performance Acceptable
+            </div>
+            
+            <div class="gate pass">
+                ✅ Pass Rate Acceptable
+            </div>
+            
+            <div class="gate pass">
+                ✅ No Critical Failures
+            </div>
+            
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>📊 Test Categories</h2>
+            <div class="category-grid">
+                
+            <div class="category-card">
+                <h3>Other Tests</h3>
+                <p><strong>Total:</strong> 90</p>
+                <p><strong>Passed:</strong> 90</p>
+                <p><strong>Failed:</strong> 0</p>
+                <p><strong>Pass Rate:</strong> 100.0%</p>
+                <p><strong>Duration:</strong> 0.00s</p>
+            </div>
+            
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>📈 Coverage Details</h2>
+            <div class="coverage-bar">
+                <div class="coverage-fill" style="width: 78.31%"></div>
+            </div>
+            <p>Overall Coverage: <strong>78.31%</strong></p>
+            <p>No coverage data available</p>
+        </div>
+        
+        
+        
+        <div class="section">
+            <h2>💡 Recommendations</h2>
+            <div class="recommendations">
+                <div class="recommendation">🎉 Test suite is performing excellently across all metrics!</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>🔧 Environment</h2>
+            <table>
+                <tr><th>Python Version</th><td>3.13.7 (main, Aug 20 2025, 22:17:40) [GCC 14.3.0]</td></tr>
+                <tr><th>Platform</th><td>linux</td></tr>
+                <tr><th>Working Directory</th><td>/home/sebastiangarcia/planmaestro-ecosystem/packages/tools</td></tr>
+                <tr><th>CI Environment</th><td>false</td></tr>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
+        

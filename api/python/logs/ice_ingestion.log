@@ -1,0 +1,135 @@
+2025-11-05 02:07:22,365 - __main__ - INFO - Logging initialized - Level: INFO, File: /home/sebastiangarcia/planmaestro-ecosystem/packages/tools/api/python/logs/ice_ingestion.log
+2025-11-05 02:07:22,365 - __main__ - WARNING - DATABASE_URL not set - database operations will be skipped
+2025-11-05 02:07:22,365 - __main__ - INFO - Local ingestion directory: /home/sebastiangarcia/ice-ingestion-data
+2025-11-05 02:07:22,365 - __main__ - INFO - ICEIngestionPipeline initialized in local mode
+2025-11-05 02:07:22,366 - __main__ - INFO - ================================================================================
+2025-11-05 02:07:22,366 - __main__ - INFO - Starting ICE Data Ingestion - Mode: LOCAL
+2025-11-05 02:07:22,366 - __main__ - INFO - ================================================================================
+2025-11-05 02:07:22,366 - __main__ - INFO - ✔ Base directory exists: /home/sebastiangarcia/ice-ingestion-data
+2025-11-05 02:07:22,366 - __main__ - WARNING - ⚠ Database manager not initialized
+2025-11-05 02:07:22,366 - __main__ - INFO - ✔ Local environment validation successful
+2025-11-05 02:07:22,366 - __main__ - INFO - Starting local ingestion from: /home/sebastiangarcia/ice-ingestion-data
+2025-11-05 02:07:22,366 - storage_adapter - INFO - LocalStorageAdapter initialized with base_path: /home/sebastiangarcia/ice-ingestion-data
+2025-11-05 02:07:22,366 - local_ingestion_loader - INFO - LocalIngestionLoader initialized with base_dir: /home/sebastiangarcia/ice-ingestion-data
+2025-11-05 02:07:22,366 - local_ingestion_loader - INFO - ================================================================================
+2025-11-05 02:07:22,366 - local_ingestion_loader - INFO - Starting Local ICE Data Ingestion
+2025-11-05 02:07:22,366 - local_ingestion_loader - INFO - ================================================================================
+2025-11-05 02:07:22,366 - local_ingestion_loader - INFO - ✔ Directory structure validated
+2025-11-05 02:07:22,366 - local_ingestion_loader - INFO - Loading student data...
+2025-11-05 02:07:22,366 - local_ingestion_loader - INFO - Found 1 data files in students/
+2025-11-05 02:07:22,377 - local_ingestion_loader - INFO - Loaded 5 student records from students_batch_2025_01.csv
+2025-11-05 02:07:22,377 - local_ingestion_loader - INFO - ✔ Loaded 5 total student records from 1 files
+2025-11-05 02:07:22,377 - local_ingestion_loader - INFO - Loading lead data...
+2025-11-05 02:07:22,377 - local_ingestion_loader - INFO - Found 1 data files in leads/
+2025-11-05 02:07:22,380 - local_ingestion_loader - INFO - Loaded 5 lead records from leads_batch_2025_01.csv
+2025-11-05 02:07:22,380 - local_ingestion_loader - INFO - ✔ Loaded 5 total lead records from 1 files
+2025-11-05 02:07:22,380 - local_ingestion_loader - INFO - Scanning document files...
+2025-11-05 02:07:22,384 - local_ingestion_loader - INFO - ✔ Indexed 4 document files
+2025-11-05 02:07:22,384 - local_ingestion_loader - INFO - ================================================================================
+2025-11-05 02:07:22,384 - local_ingestion_loader - INFO - Ingestion Complete - Summary
+2025-11-05 02:07:22,384 - local_ingestion_loader - INFO - ================================================================================
+2025-11-05 02:07:22,384 - local_ingestion_loader - INFO - ✔ Found 5 student records from 1 files
+2025-11-05 02:07:22,384 - local_ingestion_loader - INFO - ✔ Found 5 lead records from 1 files
+2025-11-05 02:07:22,384 - local_ingestion_loader - INFO - ✔ Indexed 4 document files
+2025-11-05 02:07:22,384 - local_ingestion_loader - INFO - ⏱ Completed in 0.02 seconds
+2025-11-05 02:45:42,761 - __main__ - INFO - Logging initialized - Level: INFO, File: /home/sebastiangarcia/planmaestro-ecosystem/packages/tools/api/python/logs/ice_ingestion.log
+2025-11-05 02:45:42,761 - db_utils - INFO - DatabaseManager initialized
+2025-11-05 02:45:42,761 - __main__ - INFO - Database manager initialized
+2025-11-05 02:45:42,761 - __main__ - INFO - Local ingestion directory: /home/sebastiangarcia/ice-ingestion-data
+2025-11-05 02:45:42,761 - __main__ - INFO - ICEIngestionPipeline initialized in local mode
+2025-11-05 02:45:42,762 - __main__ - INFO - ================================================================================
+2025-11-05 02:45:42,762 - __main__ - INFO - Starting ICE Data Ingestion - Mode: LOCAL
+2025-11-05 02:45:42,762 - __main__ - INFO - ================================================================================
+2025-11-05 02:45:42,762 - __main__ - INFO - ✔ Base directory exists: /home/sebastiangarcia/ice-ingestion-data
+2025-11-05 02:45:42,774 - db_utils - INFO - Database connection successful
+2025-11-05 02:45:42,774 - __main__ - INFO - ✔ Database connection successful
+2025-11-05 02:45:42,774 - __main__ - INFO - ✔ Local environment validation successful
+2025-11-05 02:45:42,774 - __main__ - INFO - Starting local ingestion from: /home/sebastiangarcia/ice-ingestion-data
+2025-11-05 02:45:42,774 - storage_adapter - INFO - LocalStorageAdapter initialized with base_path: /home/sebastiangarcia/ice-ingestion-data
+2025-11-05 02:45:42,774 - local_ingestion_loader - INFO - LocalIngestionLoader initialized with base_dir: /home/sebastiangarcia/ice-ingestion-data
+2025-11-05 02:45:42,774 - local_ingestion_loader - INFO - ================================================================================
+2025-11-05 02:45:42,774 - local_ingestion_loader - INFO - Starting Local ICE Data Ingestion
+2025-11-05 02:45:42,774 - local_ingestion_loader - INFO - ================================================================================
+2025-11-05 02:45:42,774 - local_ingestion_loader - INFO - ✔ Directory structure validated
+2025-11-05 02:45:42,775 - local_ingestion_loader - INFO - Loading student data...
+2025-11-05 02:45:42,775 - local_ingestion_loader - INFO - Found 1 data files in students/
+2025-11-05 02:45:42,779 - local_ingestion_loader - INFO - Loaded 5 student records from students_batch_2025_01.csv
+2025-11-05 02:45:42,779 - local_ingestion_loader - INFO - ✔ Loaded 5 total student records from 1 files
+2025-11-05 02:45:42,779 - local_ingestion_loader - INFO - Loading lead data...
+2025-11-05 02:45:42,779 - local_ingestion_loader - INFO - Found 1 data files in leads/
+2025-11-05 02:45:42,782 - local_ingestion_loader - INFO - Loaded 5 lead records from leads_batch_2025_01.csv
+2025-11-05 02:45:42,782 - local_ingestion_loader - INFO - ✔ Loaded 5 total lead records from 1 files
+2025-11-05 02:45:42,782 - local_ingestion_loader - INFO - Scanning document files...
+2025-11-05 02:45:42,786 - local_ingestion_loader - INFO - ✔ Indexed 4 document files
+2025-11-05 02:45:42,786 - local_ingestion_loader - INFO - ================================================================================
+2025-11-05 02:45:42,786 - local_ingestion_loader - INFO - Ingestion Complete - Summary
+2025-11-05 02:45:42,786 - local_ingestion_loader - INFO - ================================================================================
+2025-11-05 02:45:42,786 - local_ingestion_loader - INFO - ✔ Found 5 student records from 1 files
+2025-11-05 02:45:42,787 - local_ingestion_loader - INFO - ✔ Found 5 lead records from 1 files
+2025-11-05 02:45:42,787 - local_ingestion_loader - INFO - ✔ Indexed 4 document files
+2025-11-05 02:45:42,787 - local_ingestion_loader - INFO - ⏱ Completed in 0.01 seconds
+2025-11-05 02:45:42,787 - __main__ - INFO - Saving document metadata to database...
+2025-11-05 02:45:42,802 - db_utils - INFO - ETL tables verified/created successfully
+2025-11-05 02:45:42,802 - db_utils - INFO - Note: student_documents table managed by Prisma schema
+2025-11-05 02:45:42,816 - db_utils - ERROR - Database error: invalid input syntax for type uuid: "STU002"
+LINE 3:             WHERE student_id = 'STU002' AND object_key = 'ST...
+                                       ^
+
+2025-11-05 02:45:42,817 - db_utils - ERROR - Error checking document existence: invalid input syntax for type uuid: "STU002"
+LINE 3:             WHERE student_id = 'STU002' AND object_key = 'ST...
+                                       ^
+
+2025-11-05 02:45:42,817 - db_utils - ERROR - Error inserting document visa_form.pdf: invalid input syntax for type uuid: "STU002"
+LINE 3:             WHERE student_id = 'STU002' AND object_key = 'ST...
+                                       ^
+
+2025-11-05 02:45:42,831 - db_utils - ERROR - Database error: invalid input syntax for type uuid: "STU003"
+LINE 3:             WHERE student_id = 'STU003' AND object_key = 'ST...
+                                       ^
+
+2025-11-05 02:45:42,831 - db_utils - ERROR - Error checking document existence: invalid input syntax for type uuid: "STU003"
+LINE 3:             WHERE student_id = 'STU003' AND object_key = 'ST...
+                                       ^
+
+2025-11-05 02:45:42,831 - db_utils - ERROR - Error inserting document photo.jpg: invalid input syntax for type uuid: "STU003"
+LINE 3:             WHERE student_id = 'STU003' AND object_key = 'ST...
+                                       ^
+
+2025-11-05 02:45:42,844 - db_utils - ERROR - Database error: invalid input syntax for type uuid: "STU001"
+LINE 3:             WHERE student_id = 'STU001' AND object_key = 'ST...
+                                       ^
+
+2025-11-05 02:45:42,845 - db_utils - ERROR - Error checking document existence: invalid input syntax for type uuid: "STU001"
+LINE 3:             WHERE student_id = 'STU001' AND object_key = 'ST...
+                                       ^
+
+2025-11-05 02:45:42,845 - db_utils - ERROR - Error inserting document passport.pdf: invalid input syntax for type uuid: "STU001"
+LINE 3:             WHERE student_id = 'STU001' AND object_key = 'ST...
+                                       ^
+
+2025-11-05 02:45:42,860 - db_utils - ERROR - Database error: invalid input syntax for type uuid: "STU001"
+LINE 3:             WHERE student_id = 'STU001' AND object_key = 'ST...
+                                       ^
+
+2025-11-05 02:45:42,860 - db_utils - ERROR - Error checking document existence: invalid input syntax for type uuid: "STU001"
+LINE 3:             WHERE student_id = 'STU001' AND object_key = 'ST...
+                                       ^
+
+2025-11-05 02:45:42,860 - db_utils - ERROR - Error inserting document transcript.pdf: invalid input syntax for type uuid: "STU001"
+LINE 3:             WHERE student_id = 'STU001' AND object_key = 'ST...
+                                       ^
+
+2025-11-05 02:45:42,860 - db_utils - INFO - Bulk insert complete: 0 inserted, 0 skipped, 4 errors
+2025-11-05 02:45:42,860 - __main__ - INFO - ✔ Saved metadata to PostgreSQL: 0 inserted, 0 skipped
+2025-11-05 02:45:42,872 - db_utils - ERROR - Database error: column "ingestion_mode" of relation "etl_logs" does not exist
+LINE 3:                 process_name, ingestion_mode, source_path, s...
+                                      ^
+
+2025-11-05 02:45:42,873 - db_utils - ERROR - Error logging ETL run: column "ingestion_mode" of relation "etl_logs" does not exist
+LINE 3:                 process_name, ingestion_mode, source_path, s...
+                                      ^
+
+2025-11-05 02:45:42,873 - __main__ - WARNING - Failed to log to database: column "ingestion_mode" of relation "etl_logs" does not exist
+LINE 3:                 process_name, ingestion_mode, source_path, s...
+                                      ^
+
