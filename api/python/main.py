@@ -465,6 +465,123 @@ async def get_staging_student_details(student_id: str):
         logger.error(f"Error getting student details: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/staging/leads")
+async def get_staging_leads(
+    limit: int = 50,
+    offset: int = 0
+):
+    """
+    Get list of staging leads
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Get leads
+        cur.execute("""
+            SELECT 
+                id, full_name, email, phone, address, cedula,
+                birth_date, country, city, source_file, source_sheet,
+                status, interest_program, created_at
+            FROM staging_lead
+            ORDER BY created_at DESC
+            LIMIT %s OFFSET %s
+        """, (limit, offset))
+        
+        leads = cur.fetchall()
+        
+        # Get total count
+        cur.execute("SELECT COUNT(*) as count FROM staging_lead")
+        total = cur.fetchone()['count']
+        
+        cur.close()
+        conn.close()
+        
+        return {
+            "leads": [dict(l) for l in leads],
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting staging leads: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/staging/reference-data")
+async def get_reference_data(
+    limit: int = 50,
+    offset: int = 0
+):
+    """
+    Get list of reference data files
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Get reference data
+        cur.execute("""
+            SELECT 
+                id, source_file, source_sheet, data_type, category,
+                row_count, column_count, columns, created_at
+            FROM staging_reference_data
+            ORDER BY created_at DESC
+            LIMIT %s OFFSET %s
+        """, (limit, offset))
+        
+        reference_data = cur.fetchall()
+        
+        # Get total count
+        cur.execute("SELECT COUNT(*) as count FROM staging_reference_data")
+        total = cur.fetchone()['count']
+        
+        cur.close()
+        conn.close()
+        
+        return {
+            "reference_data": [dict(r) for r in reference_data],
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting reference data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/staging/reference-data/{ref_id}")
+async def get_reference_data_details(ref_id: int):
+    """
+    Get detailed information for a specific reference data file including content preview
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Get reference data details
+        cur.execute("""
+            SELECT *
+            FROM staging_reference_data
+            WHERE id = %s
+        """, (ref_id,))
+        
+        ref_data = cur.fetchone()
+        
+        if not ref_data:
+            raise HTTPException(status_code=404, detail="Reference data not found")
+        
+        cur.close()
+        conn.close()
+        
+        return dict(ref_data)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting reference data details: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/staging/runs")
 async def get_ingestion_runs(limit: int = 10):
     """

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Database, Users, FileText, Home, TrendingUp, Filter, CheckCircle2, Clock, AlertCircle, Trash2, AlertTriangle, Sparkles } from 'lucide-react';
+import { Database, Users, FileText, Home, TrendingUp, Filter, CheckCircle2, Clock, AlertCircle, Trash2, AlertTriangle, Sparkles, ChevronDown, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 
@@ -39,6 +39,32 @@ interface StudentsResponse {
   offset: number;
 }
 
+interface Lead {
+  id: string;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  country: string | null;
+  city: string | null;
+  source_file: string;
+  source_sheet: string;
+  status: string | null;
+  interest_program: string | null;
+}
+
+interface ReferenceData {
+  id: number;
+  source_file: string;
+  source_sheet: string;
+  data_type: string;
+  category: string | null;
+  row_count: number;
+  column_count: number;
+  columns: string[];
+  created_at: string;
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default function ICEDatabasePage() {
@@ -60,6 +86,12 @@ export default function ICEDatabasePage() {
     false_positives_count: number;
     records_to_delete: Array<{ name: string; program: string; document_count: number }>;
   } | null>(null);
+  const [showLeads, setShowLeads] = useState(false);
+  const [showReferenceData, setShowReferenceData] = useState(false);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [referenceData, setReferenceData] = useState<ReferenceData[]>([]);
+  const [leadsLoading, setLeadsLoading] = useState(false);
+  const [refDataLoading, setRefDataLoading] = useState(false);
   const itemsPerPage = 20;
 
   // Fetch summary data
@@ -645,6 +677,164 @@ export default function ICEDatabasePage() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Leads Section (Expandable) */}
+      {summary && summary.total_leads > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6">
+          <button
+            onClick={async () => {
+              setShowLeads(!showLeads);
+              if (!showLeads && leads.length === 0) {
+                setLeadsLoading(true);
+                try {
+                  const response = await fetch(`${API_BASE_URL}/staging/leads`);
+                  if (response.ok) {
+                    const data = await response.json();
+                    setLeads(data.leads);
+                  }
+                } catch (err) {
+                  console.error('Error fetching leads:', err);
+                } finally {
+                  setLeadsLoading(false);
+                }
+              }
+            }}
+            className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center">
+              <Users size={20} className="mr-2 text-purple-600" />
+              <h2 className="text-lg font-semibold text-gray-900">Leads ({summary.total_leads})</h2>
+              <span className="ml-3 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full font-medium">V3 Enhanced</span>
+            </div>
+            {showLeads ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+          </button>
+          
+          {showLeads && (
+            <div className="border-t border-gray-200">
+              {leadsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <LoadingSpinner size="lg" />
+                </div>
+              ) : leads.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No leads found</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Interest</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {leads.map((lead) => (
+                        <tr key={lead.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 text-sm font-medium text-gray-900">{lead.full_name}</td>
+                          <td className="px-6 py-4 text-sm text-gray-700">
+                            {lead.email && <div>{lead.email}</div>}
+                            {lead.phone && <div className="text-gray-500">{lead.phone}</div>}
+                            {!lead.email && !lead.phone && <span className="text-gray-400 text-xs">No contact</span>}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-700">
+                            {lead.city && lead.country ? `${lead.city}, ${lead.country}` : lead.country || lead.city || '-'}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-700">{lead.interest_program || '-'}</td>
+                          <td className="px-6 py-4 text-xs text-gray-500">{lead.source_sheet}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Reference Data Section (Expandable) */}
+      {summary && summary.total_reference_files > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6">
+          <button
+            onClick={async () => {
+              setShowReferenceData(!showReferenceData);
+              if (!showReferenceData && referenceData.length === 0) {
+                setRefDataLoading(true);
+                try {
+                  const response = await fetch(`${API_BASE_URL}/staging/reference-data`);
+                  if (response.ok) {
+                    const data = await response.json();
+                    setReferenceData(data.reference_data);
+                  }
+                } catch (err) {
+                  console.error('Error fetching reference data:', err);
+                } finally {
+                  setRefDataLoading(false);
+                }
+              }
+            }}
+            className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center">
+              <FileText size={20} className="mr-2 text-indigo-600" />
+              <h2 className="text-lg font-semibold text-gray-900">Reference Files ({summary.total_reference_files})</h2>
+              <span className="ml-3 text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full font-medium">V3 Enhanced</span>
+            </div>
+            {showReferenceData ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+          </button>
+          
+          {showReferenceData && (
+            <div className="border-t border-gray-200">
+              {refDataLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <LoadingSpinner size="lg" />
+                </div>
+              ) : referenceData.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No reference data found</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">File Name</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sheet</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Rows</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Columns</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {referenceData.map((ref) => (
+                        <tr key={ref.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            <div className="max-w-xs truncate" title={ref.source_file}>
+                              {ref.source_file.split('/').pop()}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-700">{ref.source_sheet}</td>
+                          <td className="px-6 py-4 text-sm">
+                            <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-indigo-100 text-indigo-800">
+                              {ref.data_type.replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-right text-gray-700">{ref.row_count.toLocaleString()}</td>
+                          <td className="px-6 py-4 text-sm text-right text-gray-700">{ref.column_count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
