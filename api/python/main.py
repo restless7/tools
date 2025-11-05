@@ -645,7 +645,8 @@ async def sanitize_staging_data(execute: bool = False):
                 {
                     "name": fp['full_name'],
                     "program": fp['program'],
-                    "document_count": fp['document_count']
+                    "document_count": fp['document_count'],
+                    "student_id": fp['student_id']
                 }
                 for fp in result['false_positives']
             ]
@@ -665,6 +666,87 @@ async def sanitize_staging_data(execute: bool = False):
             
     except Exception as e:
         logger.error(f"Sanitization failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/staging/student/{student_id}")
+async def delete_student_manually(student_id: str):
+    """
+    Manually delete a specific student record (for false negatives).
+    
+    Args:
+        student_id: UUID of the student to delete
+    """
+    try:
+        import sys
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from data_sanitizer import DataSanitizer
+        
+        db_url = os.getenv('DATABASE_URL', 'postgresql://postgres:224207bB@localhost:5432/leads_project')
+        
+        sanitizer = DataSanitizer(db_url)
+        result = sanitizer.delete_student_by_id(student_id)
+        
+        if result['success']:
+            return {
+                "success": True,
+                "message": f"Successfully deleted student: {result['student_name']}",
+                "student_name": result['student_name'],
+                "documents_deleted": result['documents_deleted']
+            }
+        else:
+            raise HTTPException(status_code=404, detail=result.get('error', 'Student not found'))
+            
+    except Exception as e:
+        logger.error(f"Manual deletion failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/staging/sanitize/whitelist")
+async def sanitize_with_whitelist(whitelist: List[str] = [], execute: bool = False):
+    """
+    Sanitize staging data with whitelist support (excludes specific student IDs).
+    
+    Args:
+        whitelist: List of student IDs to exclude from sanitization
+        execute: If False, runs dry-run (preview only). If True, actually deletes.
+    """
+    try:
+        import sys
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from data_sanitizer import DataSanitizer
+        
+        db_url = os.getenv('DATABASE_URL', 'postgresql://postgres:224207bB@localhost:5432/leads_project')
+        
+        sanitizer = DataSanitizer(db_url, whitelist=set(whitelist))
+        result = sanitizer.sanitize(dry_run=not execute)
+        
+        if result['success']:
+            # Format false positives for frontend display
+            records_to_delete = [
+                {
+                    "name": fp['full_name'],
+                    "program": fp['program'],
+                    "document_count": fp['document_count'],
+                    "student_id": fp['student_id']
+                }
+                for fp in result['false_positives']
+            ]
+            
+            return {
+                "success": True,
+                "dry_run": not execute,
+                "false_positives_count": result['stats']['false_positives_found'],
+                "records_to_delete": records_to_delete,
+                "whitelisted_count": len(whitelist),
+                "students_deleted": result['stats'].get('students_deleted', 0) if execute else 0,
+                "documents_removed": result['stats'].get('documents_orphaned', 0) if execute else 0,
+                "message": f"{'Successfully sanitized' if execute else 'Found'} {result['stats']['false_positives_found']} false positive records",
+                "stats": result['stats']
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result.get('error', 'Sanitization failed'))
+            
+    except Exception as e:
+        logger.error(f"Sanitization with whitelist failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/staging/cleanup")

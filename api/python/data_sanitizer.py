@@ -34,29 +34,33 @@ class DataSanitizer:
         # Years (numeric patterns)
         '2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026', '2027',
         
-        # Organizations & Agencies
+        # Organizations & Agencies (with number prefixes)
         'LA LIFE ADVENTURES', 'LALIFE ADVENTURES', 'L A LIFE ADVENTURES',
+        '1. LA LIFE ADVENTURES', '1.LA LIFE ADVENTURES',
         'AAG ALLIANCE ABROAD GROUP', 'ALLIANCE ABROAD GROUP',
+        '2.AAG ALLIANCE ABROAD GROUP', '2. AAG ALLIANCE ABROAD GROUP',
         'IEE INTERNATIONAL EDUCATIONAL EXCHANGE', 'INTERNATIONAL EDUCATIONAL EXCHANGE',
+        '3. IEE INTERNATIONAL EDUCATIONAL EXCHANGE', '3.IEE INTERNATIONAL EDUCATIONAL EXCHANGE',
         
         # Programs (exact matches)
         'AU PAIR', 'AUPAIR',
         'WORK AND TRAVEL', 'WORKANDTRAVEL', 'WORK & TRAVEL',
         'CAMP COUNSELOR', 'CAMPCOUNSELOR',
-        'INTERN & TRAINEE', 'INTERN AND TRAINEE', 'INTERNANDTRAINEE',
+        'INTERN & TRAINEE', 'INTERN AND TRAINEE', 'INTERNANDTRAINEE', 'INTERN&TRAINEE',
         'H2B', 'H-2B', 'H 2B',
         'WAT', 'W&T', 'W & T',
         
         # Countries & Locations
         'AUSTRALIA', 'CANADA', 'USA', 'IRLANDA', 'IRELAND', 'DUBAI',
         
-        # Administrative/Generic Terms
+        # Administrative/Generic Terms (with variations)
         'LISTA DE ESPERA', 'LISTADEESPERA',
+        '5. LISTA DE ESPERA', '5.LISTA DE ESPERA',
         'CORREO DE BIENVENIDA', 'CORREO BIENVENIDA',
         'CURSO DE INGLES', 'CURSO INGLES',
         'FORMATOS CORREO BIENVENIDA WAT',
         'ESTUDIOS ICE', 'ESTUDIOSICE',
-        'PREGUNTAS WORK AND TRAVEL',
+        'PREGUNTAS WORK AND TRAVEL', 'PREGUNTAS WORK AND TRAVEL 2024',
         'VIDEOS DE PANTALLA', 'VIDEOSDE PANTALLA',
         'OFICINA',
         'TODOS',
@@ -78,24 +82,28 @@ class DataSanitizer:
     # Pattern-based filters (regex patterns)
     BLACKLIST_PATTERNS = [
         r'^\d{4}$',  # Four-digit years
-        r'^\d{1,2}$',  # Single or double digit numbers
+        r'^\d{1,2}\.?\s*',  # Numbers with optional period (1., 2., etc.)
         r'^WAT\s*\d{4}$',  # WAT + year
         r'^PPM\s*\d{4}$',  # PPM + year
         r'^DOCS?\s+',  # Starts with DOC or DOCS
         r'CORREO.*BIENVENIDA',  # Email welcome variations
         r'FORMATO.*',  # Format-related folders
         r'VIDEO.*PANTALLA',  # Screen video variations
+        r'^PREGUNTAS\s+WORK\s+AND\s+TRAVEL',  # Questions about W&T program
+        r'^\d+\.\s*',  # Numbered list entries (1. , 2. , etc.)
     ]
     
-    def __init__(self, db_url: str):
+    def __init__(self, db_url: str, whitelist: Set[str] = None):
         """
         Initialize data sanitizer.
         
         Args:
             db_url: PostgreSQL database connection URL
+            whitelist: Set of student IDs to exclude from sanitization
         """
         self.db_url = db_url
         self.conn = None
+        self.whitelist = whitelist or set()
         
         # Statistics
         self.stats = {
@@ -210,6 +218,11 @@ class DataSanitizer:
         for student in students:
             self.stats['students_checked'] += 1
             
+            # Skip if in whitelist (manually marked as valid)
+            if student['student_id'] in self.whitelist:
+                logger.debug(f"Skipping whitelisted: {student['full_name']}")
+                continue
+            
             if self.is_false_positive(student['full_name']):
                 false_positives.append(student)
                 self.stats['false_positives_found'] += 1
@@ -256,6 +269,59 @@ class DataSanitizer:
             
             if not dry_run:
                 self.conn.commit()
+    
+    def delete_student_by_id(self, student_id: str) -> Dict[str, Any]:
+        """
+        Manually delete a specific student by ID.
+        
+        Args:
+            student_id: Student ID to delete
+            
+        Returns:
+            Dict with deletion result
+        """
+        try:
+            self.connect_db()
+            
+            with self.conn.cursor() as cur:
+                # Get student info first
+                cur.execute("""
+                    SELECT s.id, p.id as person_id, p.full_name, s.program,
+                           (SELECT COUNT(*) FROM staging_document d WHERE d.student_id = s.id) as doc_count
+                    FROM staging_student s
+                    JOIN staging_person p ON s.person_id = p.id
+                    WHERE s.id = %s
+                """, (student_id,))
+                
+                student = cur.fetchone()
+                if not student:
+                    return {'success': False, 'error': 'Student not found'}
+                
+                # Delete documents
+                cur.execute("DELETE FROM staging_document WHERE student_id = %s", (student_id,))
+                docs_deleted = cur.rowcount
+                
+                # Delete student
+                cur.execute("DELETE FROM staging_student WHERE id = %s", (student_id,))
+                
+                # Delete person
+                cur.execute("DELETE FROM staging_person WHERE id = %s", (student['person_id'],))
+                
+                self.conn.commit()
+                
+                logger.info(f"Manually deleted: {student['full_name']} ({docs_deleted} docs)")
+                
+                return {
+                    'success': True,
+                    'student_name': student['full_name'],
+                    'documents_deleted': docs_deleted
+                }
+                
+        except Exception as e:
+            logger.error(f"Failed to delete student {student_id}: {e}")
+            return {'success': False, 'error': str(e)}
+        finally:
+            self.close_db()
     
     def sanitize(self, dry_run: bool = False) -> Dict[str, Any]:
         """
@@ -329,7 +395,8 @@ class DataSanitizer:
                     {
                         'full_name': fp['full_name'],
                         'program': fp['program'],
-                        'document_count': fp['document_count']
+                        'document_count': fp['document_count'],
+                        'student_id': fp['student_id']
                     }
                     for fp in false_positives
                 ],
