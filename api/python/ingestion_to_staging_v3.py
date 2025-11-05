@@ -1,0 +1,521 @@
+#!/usr/bin/env python3
+"""
+ICE Data Ingestion to Staging System V3
+Enhanced with Excel/CSV extraction for comprehensive data capture
+"""
+
+import os
+import sys
+import json
+import shutil
+import logging
+from pathlib import Path
+from datetime import datetime
+from typing import Dict, List, Any, Optional
+import psycopg2
+from psycopg2.extras import execute_batch, Json
+from dotenv import load_dotenv
+
+# Add current directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from local_ingestion_loader_v2 import LocalIngestionLoaderV2
+from data_extractor import ExcelDataExtractor
+from csv_data_processor import PersonDataProcessor, process_classified_data
+
+# Load environment
+load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('/home/sebastiangarcia/ice-data-staging/reports/ingestion_v3.log'),
+        logging.StreamHandler()
+    ]
+)
+
+logger = logging.getLogger(__name__)
+
+
+class EnhancedStagingIngestionManager:
+    """
+    Enhanced ingestion manager with Excel/CSV extraction capabilities.
+    
+    Pipeline:
+    1. Extract and classify Excel/CSV data (students, leads, reference)
+    2. Scan directory structure for documents
+    3. Match and enrich with CSV data
+    4. Normalize file names and organization
+    5. Populate staging database (students, leads, reference data)
+    6. Generate comprehensive reports
+    """
+    
+    def __init__(
+        self,
+        source_dir: str,
+        staging_dir: str,
+        db_url: str
+    ):
+        """
+        Initialize enhanced staging ingestion manager.
+        
+        Args:
+            source_dir: Source data directory
+            staging_dir: Staging directory for normalized data
+            db_url: Database connection URL
+        """
+        self.source_dir = Path(source_dir)
+        self.staging_dir = Path(staging_dir)
+        self.db_url = db_url
+        
+        # Staging subdirectories
+        self.documents_dir = self.staging_dir / 'documents'
+        self.metadata_dir = self.staging_dir / 'metadata'
+        self.reports_dir = self.staging_dir / 'reports'
+        self.extracted_csvs_dir = self.staging_dir / 'extracted_csvs'
+        
+        # Database connection
+        self.conn = None
+        
+        # Statistics
+        self.stats = {
+            'excel_files_processed': 0,
+            'csv_sheets_extracted': 0,
+            'students_from_csv': 0,
+            'students_from_directories': 0,
+            'leads_created': 0,
+            'reference_files_stored': 0,
+        }
+        
+        logger.info(f"Initialized EnhancedStagingIngestionManager V3")
+        logger.info(f"Source: {self.source_dir}")
+        logger.info(f"Staging: {self.staging_dir}")
+    
+    def connect_db(self):
+        """Connect to staging database."""
+        try:
+            self.conn = psycopg2.connect(self.db_url)
+            logger.info("✔ Connected to staging database")
+        except Exception as e:
+            logger.error(f"Failed to connect to database: {e}")
+            raise
+    
+    def close_db(self):
+        """Close database connection."""
+        if self.conn:
+            self.conn.close()
+            logger.info("Database connection closed")
+    
+    def extract_excel_csv_data(self) -> Dict[str, Any]:
+        """
+        Step 1: Extract and classify all Excel/CSV data.
+        
+        Returns:
+            Dict with classified data and statistics
+        """
+        logger.info("="*80)
+        logger.info("STEP 1: EXCEL/CSV DATA EXTRACTION")
+        logger.info("="*80)
+        
+        # Extract data
+        extractor = ExcelDataExtractor(
+            source_dir=str(self.source_dir),
+            output_dir=str(self.extracted_csvs_dir)
+        )
+        
+        classified_data = extractor.extract_all_data()
+        extraction_stats = extractor.get_stats()
+        
+        # Process classified data
+        processing_result = process_classified_data(classified_data)
+        
+        # Update stats
+        self.stats['excel_files_processed'] = extraction_stats['files_processed']
+        self.stats['csv_sheets_extracted'] = extraction_stats['sheets_extracted']
+        self.stats['students_from_csv'] = processing_result['stats']['total_students']
+        self.stats['leads_created'] = processing_result['stats']['total_leads']
+        self.stats['reference_files_stored'] = processing_result['stats']['total_reference_files']
+        
+        logger.info("="*80)
+        logger.info("EXCEL/CSV EXTRACTION SUMMARY")
+        logger.info(f"Excel Files Processed: {self.stats['excel_files_processed']}")
+        logger.info(f"CSV Sheets Extracted: {self.stats['csv_sheets_extracted']}")
+        logger.info(f"Students Found in CSV: {self.stats['students_from_csv']}")
+        logger.info(f"Leads Found: {self.stats['leads_created']}")
+        logger.info(f"Reference Files: {self.stats['reference_files_stored']}")
+        logger.info("="*80)
+        
+        return processing_result
+    
+    def scan_directory_structure(self) -> Dict[str, Any]:
+        """
+        Step 2: Scan directory structure for documents.
+        
+        Returns:
+            Dict with student records and documents
+        """
+        logger.info("\n" + "="*80)
+        logger.info("STEP 2: DIRECTORY STRUCTURE SCAN")
+        logger.info("="*80)
+        
+        loader = LocalIngestionLoaderV2(str(self.source_dir))
+        results = loader.run_ingestion(program="Unknown")
+        
+        if not results['success']:
+            raise Exception(f"Directory scan failed: {results.get('error')}")
+        
+        self.stats['students_from_directories'] = results['stats']['person_records_created']
+        
+        logger.info("="*80)
+        logger.info("DIRECTORY SCAN SUMMARY")
+        logger.info(f"Students from Directories: {self.stats['students_from_directories']}")
+        logger.info(f"Documents Found: {results['stats']['documents_indexed']}")
+        logger.info("="*80)
+        
+        return results
+    
+    def merge_csv_and_directory_data(
+        self,
+        csv_data: Dict[str, Any],
+        directory_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Step 3: Merge CSV and directory data, enriching where possible.
+        
+        Args:
+            csv_data: Processed CSV data
+            directory_data: Directory scan results
+            
+        Returns:
+            Merged dataset
+        """
+        logger.info("\n" + "="*80)
+        logger.info("STEP 3: DATA MERGING & ENRICHMENT")
+        logger.info("="*80)
+        
+        # Create name-based lookup for CSV students
+        csv_students_by_name = {}
+        for student in csv_data['students']:
+            normalized_name = student['full_name']
+            csv_students_by_name[normalized_name] = student
+        
+        # Enrich directory students with CSV data
+        enriched_count = 0
+        for dir_student in directory_data['student_records']:
+            normalized_name = dir_student['normalized_name']
+            
+            if normalized_name in csv_students_by_name:
+                csv_student = csv_students_by_name[normalized_name]
+                
+                # Enrich with CSV data
+                if not dir_student.get('email') and csv_student.get('email'):
+                    dir_student['email'] = csv_student['email']
+                    enriched_count += 1
+                
+                if not dir_student.get('phone') and csv_student.get('phone'):
+                    dir_student['phone'] = csv_student['phone']
+                    enriched_count += 1
+                
+                # Add additional fields
+                dir_student['csv_enriched'] = True
+                dir_student['csv_source_file'] = csv_student.get('source_file')
+                dir_student['cedula'] = csv_student.get('cedula')
+                dir_student['birth_date'] = csv_student.get('birth_date')
+                dir_student['address'] = csv_student.get('address')
+        
+        logger.info(f"✔ Enriched {enriched_count} student records with CSV data")
+        logger.info("="*80)
+        
+        return {
+            'students': directory_data['student_records'],
+            'documents': directory_data['documents'],
+            'leads': csv_data['leads'],
+            'reference_files': csv_data['reference_files'],
+            'directory_results': directory_data,
+        }
+    
+    def insert_leads_to_database(self, leads: List[Dict[str, Any]], run_id: int):
+        """
+        Insert lead records into staging_lead table.
+        
+        Args:
+            leads: List of lead dictionaries
+            run_id: Ingestion run ID
+        """
+        logger.info(f"\nInserting {len(leads)} leads...")
+        
+        with self.conn.cursor() as cur:
+            for lead in leads:
+                try:
+                    cur.execute("""
+                        INSERT INTO staging_lead (
+                            id, full_name, email, phone, address, cedula, birth_date,
+                            country, city, source_file, source_sheet, status,
+                            interest_program, notes, ingestion_run_id
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (email) WHERE email IS NOT NULL DO UPDATE
+                        SET phone = EXCLUDED.phone,
+                            address = EXCLUDED.address,
+                            updated_at = NOW()
+                    """, (
+                        lead['id'],
+                        lead['full_name'],
+                        lead.get('email'),
+                        lead.get('phone'),
+                        lead.get('address'),
+                        lead.get('cedula'),
+                        lead.get('birth_date'),
+                        lead.get('country'),
+                        lead.get('city'),
+                        lead.get('source_file'),
+                        lead.get('source_sheet'),
+                        lead.get('status', 'NEW'),
+                        lead.get('program'),  # interest_program
+                        None,  # notes
+                        run_id
+                    ))
+                except Exception as e:
+                    logger.warning(f"Error inserting lead {lead['full_name']}: {e}")
+                    continue
+        
+        self.conn.commit()
+        logger.info(f"✔ Inserted {len(leads)} leads")
+    
+    def insert_reference_data_to_database(self, reference_files: List[Dict[str, Any]], run_id: int):
+        """
+        Insert reference data into staging_reference_data table.
+        
+        Args:
+            reference_files: List of reference file dictionaries
+            run_id: Ingestion run ID
+        """
+        logger.info(f"\nInserting {len(reference_files)} reference files...")
+        
+        with self.conn.cursor() as cur:
+            for ref_file in reference_files:
+                try:
+                    # Determine data type from sheet name
+                    sheet_name = ref_file['sheet_name'].lower()
+                    
+                    if 'price' in sheet_name or 'precio' in sheet_name:
+                        data_type = 'PRICE_LIST'
+                    elif 'employer' in sheet_name or 'empleador' in sheet_name:
+                        data_type = 'EMPLOYER_LIST'
+                    elif 'country' in sheet_name or 'pais' in sheet_name:
+                        data_type = 'COUNTRY_LIST'
+                    else:
+                        data_type = 'GENERAL_REFERENCE'
+                    
+                    cur.execute("""
+                        INSERT INTO staging_reference_data (
+                            source_file, source_sheet, data_type, data_content,
+                            row_count, column_count, columns, ingestion_run_id
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        ref_file['source_file'],
+                        ref_file['sheet_name'],
+                        data_type,
+                        Json({'csv_path': ref_file['csv_path']}),
+                        ref_file['row_count'],
+                        ref_file['column_count'],
+                        ref_file['columns'],
+                        run_id
+                    ))
+                except Exception as e:
+                    logger.warning(f"Error inserting reference file {ref_file['sheet_name']}: {e}")
+                    continue
+        
+        self.conn.commit()
+        logger.info(f"✔ Inserted {len(reference_files)} reference files")
+    
+    def log_ingestion_run(self, merged_data: Dict[str, Any]) -> int:
+        """
+        Log ingestion run with enhanced statistics.
+        
+        Args:
+            merged_data: Merged ingestion data
+            
+        Returns:
+            int: Run ID
+        """
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO staging_ingestion_run (
+                    source_directory, total_students, total_documents,
+                    csv_files_processed, records_enriched, execution_time_seconds,
+                    total_leads, total_reference_files, excel_files_processed,
+                    status, notes
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                str(self.source_dir),
+                len(merged_data['students']),
+                len(merged_data['documents']),
+                self.stats['csv_sheets_extracted'],
+                sum(1 for s in merged_data['students'] if s.get('csv_enriched')),
+                merged_data['directory_results']['stats']['execution_time'],
+                len(merged_data['leads']),
+                len(merged_data['reference_files']),
+                self.stats['excel_files_processed'],
+                'COMPLETED',
+                f"Enhanced V3 ingestion with Excel/CSV extraction"
+            ))
+            
+            run_id = cur.fetchone()[0]
+            self.conn.commit()
+            
+            logger.info(f"✔ Logged ingestion run (ID: {run_id})")
+            
+            return run_id
+    
+    def run_full_ingestion(self):
+        """
+        Execute complete enhanced ingestion pipeline.
+        """
+        logger.info("\n" + "="*80)
+        logger.info("🚀 ENHANCED INGESTION PIPELINE V3")
+        logger.info("="*80)
+        
+        start_time = datetime.now()
+        
+        try:
+            # Step 1: Extract Excel/CSV data
+            csv_data = self.extract_excel_csv_data()
+            
+            # Step 2: Scan directory structure
+            directory_data = self.scan_directory_structure()
+            
+            # Step 3: Merge and enrich data
+            merged_data = self.merge_csv_and_directory_data(csv_data, directory_data)
+            
+            # Step 4: Connect to database
+            logger.info("\n" + "="*80)
+            logger.info("STEP 4: DATABASE OPERATIONS")
+            logger.info("="*80)
+            self.connect_db()
+            
+            # Step 5: Insert data
+            logger.info("\nInserting students and documents...")
+            # Note: Using existing ingestion_to_staging.py methods for student/document insertion
+            from ingestion_to_staging import StagingIngestionManager
+            base_manager = StagingIngestionManager(
+                str(self.source_dir),
+                str(self.staging_dir),
+                self.db_url
+            )
+            base_manager.conn = self.conn
+            base_manager.insert_staging_data(
+                merged_data['students'],
+                merged_data['documents']
+            )
+            
+            # Step 6: Log run (get run_id)
+            run_id = self.log_ingestion_run(merged_data)
+            
+            # Step 7: Insert leads
+            logger.info("\n" + "="*80)
+            logger.info("STEP 5: INSERTING LEADS & REFERENCE DATA")
+            logger.info("="*80)
+            self.insert_leads_to_database(merged_data['leads'], run_id)
+            
+            # Step 8: Insert reference data
+            self.insert_reference_data_to_database(merged_data['reference_files'], run_id)
+            
+            # Step 9: Generate final report
+            logger.info("\n" + "="*80)
+            logger.info("STEP 6: FINAL REPORT")
+            logger.info("="*80)
+            self.generate_final_report(merged_data, run_id, start_time)
+            
+            logger.info("\n" + "="*80)
+            logger.info("✅ ENHANCED INGESTION V3 COMPLETED SUCCESSFULLY")
+            logger.info("="*80)
+            
+        except Exception as e:
+            logger.error(f"❌ Ingestion failed: {e}", exc_info=True)
+            raise
+        
+        finally:
+            self.close_db()
+    
+    def generate_final_report(self, merged_data: Dict[str, Any], run_id: int, start_time: datetime):
+        """Generate comprehensive final report."""
+        execution_time = (datetime.now() - start_time).total_seconds()
+        
+        report = f"""
+{'='*80}
+ICE DATA INGESTION - ENHANCED V3 FINAL REPORT
+{'='*80}
+Run ID: {run_id}
+Execution Time: {execution_time:.2f} seconds
+Timestamp: {datetime.now().isoformat()}
+
+EXCEL/CSV EXTRACTION
+{'='*80}
+Excel Files Processed:      {self.stats['excel_files_processed']}
+CSV Sheets Extracted:       {self.stats['csv_sheets_extracted']}
+Students from CSV:          {self.stats['students_from_csv']}
+Leads Found:               {self.stats['leads_created']}
+Reference Files:           {self.stats['reference_files_stored']}
+
+DIRECTORY SCAN
+{'='*80}
+Students from Directories: {self.stats['students_from_directories']}
+Documents Found:           {len(merged_data['documents'])}
+
+DATA ENRICHMENT
+{'='*80}
+Total Unique Students:     {len(merged_data['students'])}
+CSV-Enriched Students:     {sum(1 for s in merged_data['students'] if s.get('csv_enriched'))}
+
+FINAL DATABASE RECORDS
+{'='*80}
+Students Inserted:         {len(merged_data['students'])}
+Documents Inserted:        {len(merged_data['documents'])}
+Leads Inserted:            {len(merged_data['leads'])}
+Reference Files Stored:    {len(merged_data['reference_files'])}
+
+PROGRAM DISTRIBUTION
+{'='*80}
+"""
+        # Program distribution
+        program_counts = {}
+        for student in merged_data['students']:
+            program = student.get('program', 'Unknown')
+            program_counts[program] = program_counts.get(program, 0) + 1
+        
+        for program, count in sorted(program_counts.items(), key=lambda x: x[1], reverse=True):
+            report += f"{program:<30} {count:>5}\n"
+        
+        report += f"\n{'='*80}\n"
+        
+        # Save report
+        report_file = self.reports_dir / f"ingestion_v3_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        with open(report_file, 'w') as f:
+            f.write(report)
+        
+        # Print report
+        print(report)
+        
+        logger.info(f"✔ Report saved: {report_file}")
+
+
+def main():
+    """Main execution."""
+    # Configuration
+    SOURCE_DIR = os.getenv('SOURCE_DIR', "/home/sebastiangarcia/Downloads/data_ingestion/drive-download-20251105T055300Z-1-001")
+    STAGING_DIR = os.getenv('STAGING_DIR', "/home/sebastiangarcia/ice-data-staging")
+    DB_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:224207bB@localhost:5432/leads_project')
+    
+    # Run enhanced ingestion
+    manager = EnhancedStagingIngestionManager(SOURCE_DIR, STAGING_DIR, DB_URL)
+    manager.run_full_ingestion()
+
+
+if __name__ == '__main__':
+    main()
