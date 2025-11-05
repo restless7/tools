@@ -92,6 +92,8 @@ export default function ICEDatabasePage() {
   const [referenceData, setReferenceData] = useState<ReferenceData[]>([]);
   const [leadsLoading, setLeadsLoading] = useState(false);
   const [refDataLoading, setRefDataLoading] = useState(false);
+  const [leadsPage, setLeadsPage] = useState(0);
+  const [leadsTotal, setLeadsTotal] = useState(0);
   const itemsPerPage = 20;
 
   // Fetch summary data
@@ -685,14 +687,17 @@ export default function ICEDatabasePage() {
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6">
           <button
             onClick={async () => {
-              setShowLeads(!showLeads);
-              if (!showLeads && leads.length === 0) {
+              const newShowLeads = !showLeads;
+              setShowLeads(newShowLeads);
+              if (newShowLeads && leads.length === 0) {
                 setLeadsLoading(true);
                 try {
-                  const response = await fetch(`${API_BASE_URL}/staging/leads`);
+                  const response = await fetch(`${API_BASE_URL}/staging/leads?limit=${itemsPerPage}&offset=0`);
                   if (response.ok) {
                     const data = await response.json();
                     setLeads(data.leads);
+                    setLeadsTotal(data.total);
+                    setLeadsPage(0);
                   }
                 } catch (err) {
                   console.error('Error fetching leads:', err);
@@ -751,6 +756,61 @@ export default function ICEDatabasePage() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+              
+              {/* Pagination */}
+              {leads.length > 0 && (
+                <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                  <p className="text-sm text-gray-600">
+                    Showing {leadsPage * itemsPerPage + 1} to {Math.min((leadsPage + 1) * itemsPerPage, leadsTotal)} of {leadsTotal} leads
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        const newPage = Math.max(0, leadsPage - 1);
+                        setLeadsPage(newPage);
+                        setLeadsLoading(true);
+                        try {
+                          const response = await fetch(`${API_BASE_URL}/staging/leads?limit=${itemsPerPage}&offset=${newPage * itemsPerPage}`);
+                          if (response.ok) {
+                            const data = await response.json();
+                            setLeads(data.leads);
+                          }
+                        } catch (err) {
+                          console.error('Error fetching leads:', err);
+                        } finally {
+                          setLeadsLoading(false);
+                        }
+                      }}
+                      disabled={leadsPage === 0 || leadsLoading}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const newPage = leadsPage + 1;
+                        setLeadsPage(newPage);
+                        setLeadsLoading(true);
+                        try {
+                          const response = await fetch(`${API_BASE_URL}/staging/leads?limit=${itemsPerPage}&offset=${newPage * itemsPerPage}`);
+                          if (response.ok) {
+                            const data = await response.json();
+                            setLeads(data.leads);
+                          }
+                        } catch (err) {
+                          console.error('Error fetching leads:', err);
+                        } finally {
+                          setLeadsLoading(false);
+                        }
+                      }}
+                      disabled={(leadsPage + 1) * itemsPerPage >= leadsTotal || leadsLoading}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
