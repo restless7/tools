@@ -332,6 +332,96 @@ class EnhancedStagingIngestionManager:
         self.conn.commit()
         logger.info(f"✔ Inserted {len(reference_files)} reference files")
     
+    def normalize_and_stage_documents(
+        self,
+        students: List[Dict[str, Any]],
+        documents: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Normalize documents and copy to staging folders.
+        
+        Args:
+            students: List of student records
+            documents: List of raw document metadata from directory loader
+            
+        Returns:
+            List of normalized document dictionaries ready for database insertion
+        """
+        normalized_docs = []
+        student_folders_created = set()
+        
+        # Create student ID lookup
+        student_lookup = {s['student_id']: s for s in students}
+        
+        for doc in documents:
+            try:
+                student_id = doc['student_id']
+                student = student_lookup.get(student_id)
+                
+                if not student:
+                    logger.warning(f"No student found for document: {doc['file_name']}")
+                    continue
+                
+                # Create student folder with metadata (once per student)
+                if student_id not in student_folders_created:
+                    student_dir = self.documents_dir / student_id
+                    student_dir.mkdir(parents=True, exist_ok=True)
+                    
+                    # Write student metadata JSON
+                    metadata_file = student_dir / 'STUDENT_INFO.json'
+                    with open(metadata_file, 'w') as f:
+                        json.dump({
+                            'student_id': student['student_id'],
+                            'person_id': student['person_id'],
+                            'full_name': student['full_name'],
+                            'email': student.get('email'),
+                            'phone': student.get('phone'),
+                            'program': student['program'],
+                            'source': student['source'],
+                        }, f, indent=2, default=str)
+                    
+                    student_folders_created.add(student_id)
+                
+                # Count existing documents for this student to get index
+                doc_count = sum(1 for d in normalized_docs if d['student_id'] == student_id)
+                
+                # Normalize filename: DOCTYPE_INDEX.ext
+                doc_type = doc['document_type']
+                ext = Path(doc['file_name']).suffix.lower()
+                normalized_name = f"{doc_type}_{doc_count:02d}{ext}"
+                
+                # Destination paths
+                student_dir = self.documents_dir / student_id
+                staging_path = student_dir / normalized_name
+                
+                # Copy file to staging
+                import shutil
+                shutil.copy2(doc['file_path'], staging_path)
+                
+                # Create normalized document record
+                normalized_doc = {
+                    'student_id': student_id,
+                    'original_file_name': doc['file_name'],
+                    'normalized_file_name': normalized_name,
+                    'original_file_path': doc['file_path'],
+                    'staging_file_path': str(staging_path),
+                    'file_size': doc['file_size'],
+                    'mime_type': doc['mime_type'],
+                    'document_type': doc_type,
+                    'checksum': doc['checksum']
+                }
+                
+                normalized_docs.append(normalized_doc)
+                
+            except Exception as e:
+                logger.error(f"Error normalizing document {doc.get('file_name', 'unknown')}: {e}")
+                continue
+        
+        logger.info(f"✔ Normalized and staged {len(normalized_docs)} documents")
+        logger.info(f"✔ Created {len(student_folders_created)} student folders")
+        
+        return normalized_docs
+    
     def log_ingestion_run(self, merged_data: Dict[str, Any]) -> int:
         """
         Log ingestion run with enhanced statistics.
@@ -393,13 +483,22 @@ class EnhancedStagingIngestionManager:
             # Step 3: Merge and enrich data
             merged_data = self.merge_csv_and_directory_data(csv_data, directory_data)
             
-            # Step 4: Connect to database
+            # Step 4: Normalize and stage documents
             logger.info("\n" + "="*80)
-            logger.info("STEP 4: DATABASE OPERATIONS")
+            logger.info("STEP 4: NORMALIZING & STAGING DOCUMENTS")
+            logger.info("="*80)
+            normalized_documents = self.normalize_and_stage_documents(
+                merged_data['students'],
+                merged_data['documents']
+            )
+            
+            # Step 5: Connect to database
+            logger.info("\n" + "="*80)
+            logger.info("STEP 5: DATABASE OPERATIONS")
             logger.info("="*80)
             self.connect_db()
             
-            # Step 5: Insert data
+            # Step 6: Insert data
             logger.info("\nInserting students and documents...")
             # Note: Using existing ingestion_to_staging.py methods for student/document insertion
             from ingestion_to_staging import StagingIngestionManager
@@ -411,24 +510,24 @@ class EnhancedStagingIngestionManager:
             base_manager.conn = self.conn
             base_manager.insert_staging_data(
                 merged_data['students'],
-                merged_data['documents']
+                normalized_documents
             )
             
-            # Step 6: Log run (get run_id)
+            # Step 7: Log run (get run_id)
             run_id = self.log_ingestion_run(merged_data)
             
-            # Step 7: Insert leads
+            # Step 8: Insert leads
             logger.info("\n" + "="*80)
-            logger.info("STEP 5: INSERTING LEADS & REFERENCE DATA")
+            logger.info("STEP 6: INSERTING LEADS & REFERENCE DATA")
             logger.info("="*80)
             self.insert_leads_to_database(merged_data['leads'], run_id)
             
-            # Step 8: Insert reference data
+            # Step 9: Insert reference data
             self.insert_reference_data_to_database(merged_data['reference_files'], run_id)
             
-            # Step 9: Generate final report
+            # Step 10: Generate final report
             logger.info("\n" + "="*80)
-            logger.info("STEP 6: FINAL REPORT")
+            logger.info("STEP 7: FINAL REPORT")
             logger.info("="*80)
             self.generate_final_report(merged_data, run_id, start_time)
             
