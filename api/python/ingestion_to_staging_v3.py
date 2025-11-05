@@ -236,9 +236,45 @@ class EnhancedStagingIngestionManager:
             'directory_results': directory_data,
         }
     
+    def _parse_date_safely(self, date_value: Any) -> Any:
+        """
+        Safely parse date value, returning None if invalid.
+        
+        Args:
+            date_value: Date value from CSV (string, date object, or None)
+            
+        Returns:
+            Parsed date or None if invalid
+        """
+        if not date_value:
+            return None
+        
+        # If already a date object, return it
+        if isinstance(date_value, (datetime, type(None))):
+            return date_value
+        
+        # Try to parse string dates
+        if isinstance(date_value, str):
+            # Skip invalid formats
+            if date_value.strip() == '' or 'nan' in date_value.lower():
+                return None
+            
+            # Let PostgreSQL handle standard formats, return None for invalid
+            try:
+                # Test parse to validate
+                from dateutil import parser
+                parser.parse(date_value, dayfirst=True)
+                return date_value
+            except:
+                logger.debug(f"Invalid date format, skipping: {date_value}")
+                return None
+        
+        return None
+    
     def insert_leads_to_database(self, leads: List[Dict[str, Any]], run_id: int):
         """
         Insert lead records into staging_lead table.
+        Uses individual transactions to prevent cascade failures.
         
         Args:
             leads: List of lead dictionaries
@@ -246,9 +282,15 @@ class EnhancedStagingIngestionManager:
         """
         logger.info(f"\nInserting {len(leads)} leads...")
         
-        with self.conn.cursor() as cur:
-            for lead in leads:
-                try:
+        inserted_count = 0
+        failed_count = 0
+        
+        for lead in leads:
+            try:
+                # Parse birth_date safely
+                birth_date = self._parse_date_safely(lead.get('birth_date'))
+                
+                with self.conn.cursor() as cur:
                     cur.execute("""
                         INSERT INTO staging_lead (
                             id, full_name, email, phone, address, cedula, birth_date,
@@ -267,7 +309,7 @@ class EnhancedStagingIngestionManager:
                         lead.get('phone'),
                         lead.get('address'),
                         lead.get('cedula'),
-                        lead.get('birth_date'),
+                        birth_date,  # Use safely parsed date
                         lead.get('country'),
                         lead.get('city'),
                         lead.get('source_file'),
@@ -277,12 +319,19 @@ class EnhancedStagingIngestionManager:
                         None,  # notes
                         run_id
                     ))
-                except Exception as e:
-                    logger.warning(f"Error inserting lead {lead['full_name']}: {e}")
-                    continue
+                
+                # Commit after each successful insert
+                self.conn.commit()
+                inserted_count += 1
+                
+            except Exception as e:
+                # Rollback failed transaction to prevent abort state
+                self.conn.rollback()
+                failed_count += 1
+                logger.warning(f"Error inserting lead {lead['full_name']}: {e}")
+                continue
         
-        self.conn.commit()
-        logger.info(f"✔ Inserted {len(leads)} leads")
+        logger.info(f"✔ Inserted {inserted_count} leads ({failed_count} failed)")
     
     def insert_reference_data_to_database(self, reference_files: List[Dict[str, Any]], run_id: int):
         """
