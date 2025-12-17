@@ -98,6 +98,21 @@ class StagingToProduction:
                     self._update_person(result['id'], staging_data)
                     return (result['id'], False)
             
+            # Priority 5: Fuzzy name match (for directory-extracted students)
+            # Only use this if no contact info is available
+            if not staging_data.get('email') and not staging_data.get('phone') and not staging_data.get('cedula'):
+                # Try to find by partial name match (remove extra suffixes like city names)
+                search_name = staging_data['full_name'].strip()
+                cur.execute(
+                    "SELECT id, full_name FROM persons WHERE full_name ILIKE %s OR full_name ILIKE %s LIMIT 1",
+                    (search_name, f"{search_name}%")
+                )
+                result = cur.fetchone()
+                if result:
+                    logger.debug(f"Found person by fuzzy name match: {search_name} → {result['full_name']}")
+                    self._update_person(result['id'], staging_data)
+                    return (result['id'], False)
+            
             # Create new person
             person_id = self._create_person(staging_data)
             return (person_id, True)
@@ -110,16 +125,31 @@ class StagingToProduction:
             return "dry-run-person-id"
         
         with self.prod_conn.cursor() as cur:
+            # Generate placeholder email if missing (for directory-extracted students)
+            # Format: phone-based-{phone}@noemail.local or name-based-{normalized_name}@noemail.local
+            email = data.get('email')
+            if not email:
+                if data.get('phone'):
+                    # Create pseudo-email from phone number
+                    email = f"phone-{data['phone'].replace(' ', '').replace('+', '')}@noemail.local"
+                else:
+                    # Create pseudo-email from normalized name
+                    # Remove spaces, convert to lowercase, take first 50 chars
+                    import re
+                    normalized = re.sub(r'[^a-z0-9]', '', data['full_name'].lower())[:50]
+                    email = f"name-{normalized}@noemail.local"
+            
             cur.execute("""
                 INSERT INTO persons (
-                    full_name, email, phone, address, cedula, birth_date,
-                    city, country, data_source, original_name, csv_enriched
+                    id, full_name, email, phone, address, cedula, birth_date,
+                    city, country, data_source, original_name, csv_enriched,
+                    created_at, updated_at
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
                 RETURNING id
             """, (
                 data['full_name'],
-                data.get('email'),
+                email,  # Use actual email or generated placeholder
                 data.get('phone'),
                 data.get('address'),
                 data.get('cedula'),
@@ -188,8 +218,25 @@ class StagingToProduction:
         
         with self.staging_conn.cursor() as staging_cur:
             staging_cur.execute("""
-                SELECT * FROM staging_student
-                ORDER BY created_at
+                SELECT 
+                    s.id as student_id,
+                    s.program,
+                    s.status,
+                    s.created_at,
+                    p.id as person_id,
+                    p.full_name,
+                    p.normalized_name,
+                    p.email,
+                    p.phone,
+                    p.address,
+                    p.id_number as cedula,
+                    p.birth_date,
+                    p.source,
+                    p.directory_path,
+                    p.csv_file
+                FROM staging_student s
+                JOIN staging_person p ON s.person_id = p.id
+                ORDER BY s.created_at
             """)
             
             staging_students = staging_cur.fetchall()
@@ -205,9 +252,9 @@ class StagingToProduction:
                         'address': student.get('address'),
                         'cedula': student.get('cedula'),
                         'birth_date': student.get('birth_date'),
-                        'city': student.get('city'),
-                        'country': student.get('country'),
-                        'original_name': student.get('original_name'),
+                        'city': None,  # Not in staging_person
+                        'country': None,  # Not in staging_person
+                        'original_name': student.get('full_name'),  # Use full_name as original
                     }
                     person_id, created = self.find_or_create_person(person_data)
                     
@@ -216,17 +263,21 @@ class StagingToProduction:
                         self.stats['students_skipped'] += 1
                         continue
                     
-                    # Check if student already exists
-                    with self.prod_conn.cursor() as prod_cur:
-                        prod_cur.execute(
-                            "SELECT id FROM students WHERE person_id = %s",
-                            (person_id,)
-                        )
-                        existing_student = prod_cur.fetchone()
-                        
-                        if existing_student:
-                            # Update existing student
-                            if not self.dry_run:
+                    # Check if student already exists (skip in dry-run)
+                    if self.dry_run:
+                        # In dry-run, assume it's a new student
+                        self.stats['students_created'] += 1
+                        logger.info(f"[DRY RUN] Would create student for person: {student['full_name']}")
+                    else:
+                        with self.prod_conn.cursor() as prod_cur:
+                            prod_cur.execute(
+                                "SELECT id FROM students WHERE person_id = %s",
+                                (person_id,)
+                            )
+                            existing_student = prod_cur.fetchone()
+                            
+                            if existing_student:
+                                # Update existing student
                                 prod_cur.execute("""
                                     UPDATE students
                                     SET program = COALESCE(program, %s),
@@ -236,28 +287,28 @@ class StagingToProduction:
                                     WHERE id = %s
                                 """, (
                                     student.get('program'),
-                                    student.get('source', 'CSV'),
+                                    'CSV',  # Use 'CSV' as data source
                                     existing_student['id']
                                 ))
                                 self.prod_conn.commit()
-                            self.stats['students_updated'] += 1
-                            logger.debug(f"Updated student for person: {student['full_name']}")
-                        else:
-                            # Create new student
-                            if not self.dry_run:
+                                self.stats['students_updated'] += 1
+                                logger.debug(f"Updated student for person: {student['full_name']}")
+                            else:
+                                # Create new student
                                 prod_cur.execute("""
                                     INSERT INTO students (
-                                        person_id, program, data_source, csv_enriched, status
+                                        id, person_id, program, data_source, csv_enriched, status,
+                                        created_at, updated_at
                                     )
-                                    VALUES (%s, %s, %s, TRUE, 'ACTIVE')
+                                    VALUES (gen_random_uuid(), %s, %s, %s, TRUE, 'ACTIVE', NOW(), NOW())
                                 """, (
                                     person_id,
                                     student.get('program'),
-                                    student.get('source', 'CSV')
+                                    'CSV'  # Use 'CSV' as data source
                                 ))
                                 self.prod_conn.commit()
-                            self.stats['students_created'] += 1
-                            logger.info(f"Created student for person: {student['full_name']}")
+                                self.stats['students_created'] += 1
+                                logger.info(f"Created student for person: {student['full_name']}")
                         
                 except Exception as e:
                     logger.error(f"Error migrating student {student['full_name']}: {e}")
@@ -285,16 +336,17 @@ class StagingToProduction:
             
             for lead in staging_leads:
                 try:
-                    # Find or create person
+                    # Find or create person (staging_lead has limited fields)
                     person_data = {
                         'full_name': lead['full_name'],
                         'email': lead.get('email'),
                         'phone': lead.get('phone'),
-                        'address': lead.get('address'),
-                        'cedula': lead.get('cedula'),
-                        'birth_date': lead.get('birth_date'),
+                        'address': None,  # Not in staging_lead
+                        'cedula': None,  # Not in staging_lead
+                        'birth_date': None,  # Not in staging_lead
                         'city': lead.get('city'),
                         'country': lead.get('country'),
+                        'original_name': lead.get('full_name'),
                     }
                     person_id, created = self.find_or_create_person(person_data)
                     
@@ -303,23 +355,27 @@ class StagingToProduction:
                         self.stats['leads_skipped'] += 1
                         continue
                     
-                    # Check if lead already exists
-                    with self.prod_conn.cursor() as prod_cur:
-                        prod_cur.execute("""
-                            SELECT id FROM leads
-                            WHERE person_id = %s
-                            AND (program_type = %s OR program_type IS NULL)
-                            AND (source_file = %s OR source_file IS NULL)
-                        """, (
-                            person_id,
-                            lead.get('interest_program'),
-                            lead.get('source_file')
-                        ))
-                        existing_lead = prod_cur.fetchone()
-                        
-                        if existing_lead:
-                            # Update existing lead
-                            if not self.dry_run:
+                    # Check if lead already exists (skip in dry-run)
+                    if self.dry_run:
+                        # In dry-run, assume it's a new lead
+                        self.stats['leads_created'] += 1
+                        logger.info(f"[DRY RUN] Would create lead for person: {lead['full_name']}")
+                    else:
+                        with self.prod_conn.cursor() as prod_cur:
+                            prod_cur.execute("""
+                                SELECT id FROM leads
+                                WHERE person_id = %s
+                                AND (program_type = %s OR program_type IS NULL)
+                                AND (source_file = %s OR source_file IS NULL)
+                            """, (
+                                person_id,
+                                lead.get('interest_program'),
+                                lead.get('source_file')
+                            ))
+                            existing_lead = prod_cur.fetchone()
+                            
+                            if existing_lead:
+                                # Update existing lead
                                 prod_cur.execute("""
                                     UPDATE leads
                                     SET program_type = COALESCE(%s, program_type),
@@ -338,17 +394,16 @@ class StagingToProduction:
                                     existing_lead['id']
                                 ))
                                 self.prod_conn.commit()
-                            self.stats['leads_updated'] += 1
-                            logger.debug(f"Updated lead for person: {lead['full_name']}")
-                        else:
-                            # Create new lead
-                            if not self.dry_run:
+                                self.stats['leads_updated'] += 1
+                                logger.debug(f"Updated lead for person: {lead['full_name']}")
+                            else:
+                                # Create new lead
                                 prod_cur.execute("""
                                     INSERT INTO leads (
-                                        person_id, program_type, lead_status, lead_date,
-                                        source_file, source_sheet, notes
+                                        id, person_id, program_type, lead_status, lead_date,
+                                        source_file, source_sheet, notes, created_at, updated_at
                                     )
-                                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                    VALUES (gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
                                 """, (
                                     person_id,
                                     lead.get('interest_program'),
@@ -359,8 +414,8 @@ class StagingToProduction:
                                     lead.get('notes')
                                 ))
                                 self.prod_conn.commit()
-                            self.stats['leads_created'] += 1
-                            logger.info(f"Created lead for person: {lead['full_name']}")
+                                self.stats['leads_created'] += 1
+                                logger.info(f"Created lead for person: {lead['full_name']}")
                         
                 except Exception as e:
                     logger.error(f"Error migrating lead {lead['full_name']}: {e}")
@@ -370,6 +425,162 @@ class StagingToProduction:
                     continue
         
         logger.info(f"Leads: {self.stats['leads_created']} created, {self.stats['leads_updated']} updated, {self.stats['leads_skipped']} skipped")
+    
+    def migrate_documents(self):
+        """Migrate staging_document to production student_documents table."""
+        logger.info("="*80)
+        logger.info("MIGRATING DOCUMENTS")
+        logger.info("="*80)
+        
+        with self.staging_conn.cursor() as staging_cur:
+            # Get documents with student info for person matching
+            staging_cur.execute("""
+                SELECT 
+                    d.id as doc_id,
+                    d.student_id as staging_student_id,
+                    d.original_file_name,
+                    d.normalized_file_name,
+                    d.original_file_path,
+                    d.staging_file_path,
+                    d.file_size,
+                    d.mime_type,
+                    d.document_type,
+                    d.checksum,
+                    d.created_at,
+                    s.program,
+                    p.full_name,
+                    p.email,
+                    p.phone,
+                    p.id_number as cedula
+                FROM staging_document d
+                JOIN staging_student s ON d.student_id = s.id
+                JOIN staging_person p ON s.person_id = p.id
+                ORDER BY d.created_at
+            """)
+            
+            staging_documents = staging_cur.fetchall()
+            logger.info(f"Found {len(staging_documents)} documents in staging")
+            
+            for doc in staging_documents:
+                try:
+                    # Find the production student for this document
+                    with self.prod_conn.cursor() as prod_cur:
+                        # Try to find student by person matching (use same deduplication logic)
+                        student_id = None
+                        
+                        # Priority 1: Cedula
+                        if doc.get('cedula'):
+                            prod_cur.execute("""
+                                SELECT s.id FROM students s
+                                JOIN persons p ON s.person_id = p.id
+                                WHERE p.cedula = %s
+                            """, (doc['cedula'],))
+                            result = prod_cur.fetchone()
+                            if result:
+                                student_id = result['id']
+                        
+                        # Priority 2: Email
+                        if not student_id and doc.get('email'):
+                            prod_cur.execute("""
+                                SELECT s.id FROM students s
+                                JOIN persons p ON s.person_id = p.id
+                                WHERE p.email = %s
+                            """, (doc['email'],))
+                            result = prod_cur.fetchone()
+                            if result:
+                                student_id = result['id']
+                        
+                        # Priority 3: Phone
+                        if not student_id and doc.get('phone'):
+                            prod_cur.execute("""
+                                SELECT s.id FROM students s
+                                JOIN persons p ON s.person_id = p.id
+                                WHERE p.phone = %s
+                            """, (doc['phone'],))
+                            result = prod_cur.fetchone()
+                            if result:
+                                student_id = result['id']
+                        
+                        # Priority 4: Exact name match (for directory-extracted students)
+                        if not student_id:
+                            prod_cur.execute("""
+                                SELECT s.id FROM students s
+                                JOIN persons p ON s.person_id = p.id
+                                WHERE p.full_name = %s
+                            """, (doc['full_name'],))
+                            result = prod_cur.fetchone()
+                            if result:
+                                student_id = result['id']
+                        
+                        # Priority 5: Fuzzy name match (handle city suffixes)
+                        if not student_id:
+                            prod_cur.execute("""
+                                SELECT s.id FROM students s
+                                JOIN persons p ON s.person_id = p.id
+                                WHERE p.full_name ILIKE %s
+                                LIMIT 1
+                            """, (f"{doc['full_name']}%",))
+                            result = prod_cur.fetchone()
+                            if result:
+                                student_id = result['id']
+                        
+                        if not student_id:
+                            logger.warning(f"Could not find student for document: {doc['original_file_name']} (person: {doc['full_name']})")
+                            self.stats['documents_skipped'] += 1
+                            continue
+                        
+                        # Check if document already exists by checksum
+                        prod_cur.execute(
+                            "SELECT id FROM student_documents WHERE checksum = %s",
+                            (doc['checksum'],)
+                        )
+                        existing_doc = prod_cur.fetchone()
+                        
+                        if existing_doc:
+                            logger.debug(f"Document already exists (checksum match): {doc['original_file_name']}")
+                            self.stats['documents_skipped'] += 1
+                        else:
+                            if self.dry_run:
+                                self.stats['documents_created'] += 1
+                                logger.info(f"[DRY RUN] Would create document: {doc['original_file_name']}")
+                            else:
+                                # Create MinIO object_key from staging_file_path or normalized_file_name
+                                # Format: students/{student_id}/{normalized_file_name}
+                                object_key = f"students/{student_id}/{doc['normalized_file_name']}"
+                                
+                                prod_cur.execute("""
+                                    INSERT INTO student_documents (
+                                        id, student_id, document_type, file_name, object_key,
+                                        bucket, file_size, mime_type, checksum, original_file_path,
+                                        status, uploaded_at, created_at, updated_at
+                                    )
+                                    VALUES (
+                                        gen_random_uuid(), %s, %s, %s, %s, 'apex-ice-docs',
+                                        %s, %s, %s, %s, 'PENDING', %s, NOW(), NOW()
+                                    )
+                                """, (
+                                    student_id,
+                                    doc.get('document_type') or 'OTHER',
+                                    doc['original_file_name'],
+                                    object_key,
+                                    doc.get('file_size'),
+                                    doc.get('mime_type'),
+                                    doc['checksum'],
+                                    doc.get('original_file_path'),
+                                    doc.get('created_at')
+                                ))
+                                self.prod_conn.commit()
+                                self.stats['documents_created'] += 1
+                                logger.info(f"Created document: {doc['original_file_name']} for student {student_id}")
+                        
+                except Exception as e:
+                    logger.error(f"Error migrating document {doc.get('original_file_name', 'unknown')}: {e}")
+                    if not self.dry_run:
+                        self.prod_conn.rollback()
+                    self.stats['documents_skipped'] += 1
+                    continue
+        
+        logger.info(f"Documents: {self.stats['documents_created']} created, {self.stats['documents_skipped']} skipped")
     
     def run_full_migration(self):
         """Execute full staging to production migration."""
@@ -383,7 +594,7 @@ class StagingToProduction:
             # Order matters: persons → students → leads → documents
             self.migrate_students()  # Creates persons automatically
             self.migrate_leads()     # Creates persons automatically
-            # self.migrate_documents()  # TODO: Phase 6 (MinIO integration)
+            self.migrate_documents()  # Migrates documents with MinIO object_key references
             
             elapsed = (datetime.now() - start_time).total_seconds()
             
@@ -394,6 +605,7 @@ class StagingToProduction:
             logger.info(f"Persons: {self.stats['persons_created']} created, {self.stats['persons_updated']} updated")
             logger.info(f"Students: {self.stats['students_created']} created, {self.stats['students_updated']} updated, {self.stats['students_skipped']} skipped")
             logger.info(f"Leads: {self.stats['leads_created']} created, {self.stats['leads_updated']} updated, {self.stats['leads_skipped']} skipped")
+            logger.info(f"Documents: {self.stats['documents_created']} created, {self.stats['documents_skipped']} skipped")
             logger.info("="*80)
             
             return {

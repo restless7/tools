@@ -4,7 +4,7 @@
   "private": true,
   "description": "Enterprise Tools Platform - Unified dashboard for QR generation, Excel processing, and data pipeline management",
   "scripts": {
-    "predev": "./scripts/cleanup-ports.sh",
+    "predev": "./scripts/ensure-db.sh && ./scripts/cleanup-ports.sh",
     "dev": "concurrently --kill-others --names \"FRONTEND,BACKEND\" --prefix-colors \"blue,green\" \"next dev --port 3005\" \"cd api/python && venv/bin/uvicorn main:app --reload --port 8000\"",
     "dev:frontend": "next dev --port 3005",
     "dev:backend": "cd api/python && venv/bin/uvicorn main:app --reload --port 8000",
@@ -14,7 +14,9 @@
     "cleanup": "./scripts/cleanup-ports.sh",
     "python:setup": "cd api/python && python3 -m venv venv && venv/bin/pip install --upgrade pip && venv/bin/pip install -r requirements.txt",
     "python:install": "cd api/python && venv/bin/pip install -r requirements.txt",
-    "python:dev": "cd api/python && venv/bin/uvicorn main:app --reload --port 8000"
+    "python:dev": "cd api/python && venv/bin/uvicorn main:app --reload --port 8000",
+    "python:dev-noreload": "cd api/python && venv/bin/uvicorn main:app --port 8000",
+    "dev:noreload": "concurrently --kill-others --names \"FRONTEND,BACKEND\" --prefix-colors \"blue,green\" \"next dev --port 3005\" \"cd api/python && venv/bin/uvicorn main:app --port 8000\""
   },
   "dependencies": {
     "class-variance-authority": "^0.7.0",

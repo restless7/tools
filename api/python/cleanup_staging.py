@@ -58,14 +58,15 @@ class StagingCleaner:
             conn = psycopg2.connect(self.db_url)
             cur = conn.cursor()
             
-            # Get table names
+            # Get table names - Delete in order respecting foreign keys
             tables = [
                 'staging_document',
                 'staging_student',
+                'staging_lead',  # Added staging_lead
                 'staging_person',
-                'staging_lead',
                 'staging_reference_data',
-                'staging_ingestion_run'
+                'staging_ingestion_run',
+                'staging_lead_failures'  # Added failures table
             ]
             
             # Delete in reverse order (respecting foreign keys)
@@ -81,7 +82,8 @@ class StagingCleaner:
             sequences = [
                 'staging_document_id_seq',
                 'staging_ingestion_run_id_seq',
-                'staging_reference_data_id_seq'
+                'staging_reference_data_id_seq',
+                'staging_lead_failures_id_seq'  # Added failures sequence
             ]
             
             for seq in sequences:
@@ -303,7 +305,8 @@ class StagingCleaner:
             cur = conn.cursor()
             
             tables = ['staging_person', 'staging_student', 'staging_document', 
-                     'staging_lead', 'staging_reference_data', 'staging_ingestion_run']
+                     'staging_lead', 'staging_reference_data', 'staging_ingestion_run',
+                     'staging_lead_failures']
             
             for table in tables:
                 try:

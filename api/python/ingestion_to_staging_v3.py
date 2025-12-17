@@ -326,6 +326,8 @@ class EnhancedStagingIngestionManager:
                         ON CONFLICT (email) WHERE email IS NOT NULL DO UPDATE
                         SET phone = EXCLUDED.phone,
                             address = EXCLUDED.address,
+                            cedula = EXCLUDED.cedula,
+                            birth_date = EXCLUDED.birth_date,
                             updated_at = NOW()
                     """, (
                         lead['id'],
