@@ -86,7 +86,7 @@ coverage[toml]>=7.2.0  # Coverage reporting with TOML support
 
 # Enterprise Integration
 requests>=2.31.0  # HTTP library
-urllib3>=2.0.0  # Low-level HTTP client
+urllib3>=1.26.0,<2.0.0  # Low-level HTTP client (pinned <2 for vcrpy compatibility)
 certifi>=2023.0.0  # SSL certificate bundle
 
 # Development & Debug Tools
