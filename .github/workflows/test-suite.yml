@@ -36,7 +36,7 @@ on:
 
 env:
   PYTHON_VERSION: '3.9'
-  PACKAGE_PATH: 'packages/tools'
+  PACKAGE_PATH: '.'
   TEST_RESULTS_PATH: 'test-results'
   COVERAGE_THRESHOLD: ${{ github.event.inputs.coverage_threshold || '80' }}
   
