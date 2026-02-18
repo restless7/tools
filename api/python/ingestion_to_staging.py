@@ -91,30 +91,36 @@ class StagingIngestionManager:
 
         with self.conn.cursor() as cur:
             # Staging Person table
-            cur.execute("""
+            cur.execute(
+                """
                 CREATE TABLE IF NOT EXISTS staging_person (
                     id UUID PRIMARY KEY,
                     full_name TEXT NOT NULL,
                     normalized_name TEXT NOT NULL,
                     email TEXT,
                     phone TEXT,
-                    address TEXT,
+                    linkedin TEXT,
                     id_number TEXT,
-                    birth_date DATE,
+                    role TEXT,
+                    company TEXT,
                     source TEXT,
                     directory_path TEXT,
                     csv_file TEXT,
                     created_at TIMESTAMP DEFAULT NOW()
                 )
-            """)
+            """
+            )
 
-            cur.execute("""
+            cur.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_staging_person_normalized_name 
                 ON staging_person(normalized_name)
-            """)
+            """
+            )
 
             # Staging Student table
-            cur.execute("""
+            cur.execute(
+                """
                 CREATE TABLE IF NOT EXISTS staging_student (
                     id UUID PRIMARY KEY,
                     person_id UUID NOT NULL REFERENCES staging_person(id),
@@ -122,41 +128,46 @@ class StagingIngestionManager:
                     status TEXT DEFAULT 'PENDING_REVIEW',
                     created_at TIMESTAMP DEFAULT NOW()
                 )
-            """)
+            """
+            )
 
             # Staging Document table
-            cur.execute("""
+            cur.execute(
+                """
                 CREATE TABLE IF NOT EXISTS staging_document (
                     id SERIAL PRIMARY KEY,
                     student_id UUID NOT NULL REFERENCES staging_student(id),
                     original_file_name TEXT NOT NULL,
                     normalized_file_name TEXT NOT NULL,
-                    original_file_path TEXT NOT NULL,
-                    staging_file_path TEXT NOT NULL,
-                    file_size BIGINT NOT NULL,
-                    mime_type TEXT NOT NULL,
+                    bucket TEXT,
+                    object_key TEXT,
+                    file_size INTEGER,
+                    mime_type TEXT,
                     document_type TEXT NOT NULL,
                     checksum TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT NOW(),
                     UNIQUE(checksum)
                 )
-            """)
+            """
+            )
 
             # Staging Ingestion Run table
-            cur.execute("""
+            cur.execute(
+                """
                 CREATE TABLE IF NOT EXISTS staging_ingestion_run (
                     id SERIAL PRIMARY KEY,
                     run_date TIMESTAMP DEFAULT NOW(),
                     source_directory TEXT NOT NULL,
                     total_students INTEGER,
+                    total_leads INTEGER,
                     total_documents INTEGER,
-                    csv_files_processed INTEGER,
                     records_enriched INTEGER,
                     execution_time_seconds FLOAT,
                     status TEXT DEFAULT 'COMPLETED',
                     notes TEXT
                 )
-            """)
+            """
+            )
 
             self.conn.commit()
             logger.info("✔ Staging tables created/verified")

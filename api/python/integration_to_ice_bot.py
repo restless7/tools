@@ -239,8 +239,9 @@ class StagingToProduction:
         logger.info("=" * 80)
 
         with self.staging_conn.cursor() as staging_cur:
-            staging_cur.execute("""
-                SELECT 
+            staging_cur.execute(
+                """
+                SELECT
                     s.id as student_id,
                     s.program,
                     s.status,
@@ -259,7 +260,8 @@ class StagingToProduction:
                 FROM staging_student s
                 JOIN staging_person p ON s.person_id = p.id
                 ORDER BY s.created_at
-            """)
+            """
+            )
 
             staging_students = staging_cur.fetchall()
             logger.info(f"Found {len(staging_students)} students in staging")
@@ -366,10 +368,12 @@ class StagingToProduction:
         logger.info("=" * 80)
 
         with self.staging_conn.cursor() as staging_cur:
-            staging_cur.execute("""
+            staging_cur.execute(
+                """
                 SELECT * FROM staging_lead
                 ORDER BY created_at
-            """)
+            """
+            )
 
             staging_leads = staging_cur.fetchall()
             logger.info(f"Found {len(staging_leads)} leads in staging")
@@ -493,8 +497,9 @@ class StagingToProduction:
 
         with self.staging_conn.cursor() as staging_cur:
             # Get documents with student info for person matching
-            staging_cur.execute("""
-                SELECT 
+            staging_cur.execute(
+                """
+                SELECT
                     d.id as doc_id,
                     d.student_id as staging_student_id,
                     d.original_file_name,
@@ -515,7 +520,8 @@ class StagingToProduction:
                 JOIN staging_student s ON d.student_id = s.id
                 JOIN staging_person p ON s.person_id = p.id
                 ORDER BY d.created_at
-            """)
+            """
+            )
 
             staging_documents = staging_cur.fetchall()
             logger.info(f"Found {len(staging_documents)} documents in staging")

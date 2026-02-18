@@ -376,13 +376,15 @@ class DatabaseManager:
                     }
 
                     # Get overall stats
-                    cursor.execute("""
+                    cursor.execute(
+                        """
                         SELECT 
                             COUNT(*) as total_documents,
                             COUNT(DISTINCT student_id) as unique_students,
                             SUM(file_size) as total_size
                         FROM student_documents
-                    """)
+                    """
+                    )
 
                     overall = cursor.fetchone()
                     stats["overall"] = dict(overall) if overall else {}

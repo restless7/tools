@@ -310,12 +310,14 @@ async def get_staging_summary():
         cur = conn.cursor()
 
         # Get student count by program
-        cur.execute("""
+        cur.execute(
+            """
             SELECT s.program, COUNT(*) as count
             FROM staging_student s
             GROUP BY s.program
             ORDER BY count DESC
-        """)
+        """
+        )
         programs = cur.fetchall()
 
         # Get total counts
@@ -334,20 +336,24 @@ async def get_staging_summary():
         total_reference_files = cur.fetchone()["count"]
 
         # Get source breakdown
-        cur.execute("""
+        cur.execute(
+            """
             SELECT p.source, COUNT(*) as count
             FROM staging_person p
             GROUP BY p.source
             ORDER BY count DESC
-        """)
+        """
+        )
         sources = cur.fetchall()
 
         # Get latest ingestion run
-        cur.execute("""
+        cur.execute(
+            """
             SELECT * FROM staging_ingestion_run
             ORDER BY run_date DESC
             LIMIT 1
-        """)
+        """
+        )
         latest_run = cur.fetchone()
 
         cur.close()
@@ -664,31 +670,37 @@ async def get_failures_stats():
         total_failures = cur.fetchone()["count"]
 
         # Get failures by error type
-        cur.execute("""
+        cur.execute(
+            """
             SELECT error_type, COUNT(*) as count
             FROM staging_lead_failures
             GROUP BY error_type
             ORDER BY count DESC
-        """)
+        """
+        )
         by_error_type = cur.fetchall()
 
         # Get resolved vs unresolved
-        cur.execute("""
+        cur.execute(
+            """
             SELECT resolved, COUNT(*) as count
             FROM staging_lead_failures
             GROUP BY resolved
-        """)
+        """
+        )
         by_resolution = cur.fetchall()
 
         # Get failures by ingestion run
-        cur.execute("""
+        cur.execute(
+            """
             SELECT f.ingestion_run_id, r.run_date, COUNT(*) as failure_count
             FROM staging_lead_failures f
             LEFT JOIN staging_ingestion_run r ON f.ingestion_run_id = r.id
             GROUP BY f.ingestion_run_id, r.run_date
             ORDER BY r.run_date DESC
             LIMIT 5
-        """)
+        """
+        )
         by_run = cur.fetchall()
 
         cur.close()
