@@ -98,7 +98,7 @@ pytest-testmon>=2.0.0  # Smart test selection
 
 # Schema & Data Validation
 jsonschema>=4.18.0  # JSON schema validation
-marshmallow>=3.20.0  # Object serialization/deserialization
+marshmallow>=4.1.2  # Object serialization/deserialization
 cerberus>=1.3.4  # Data validation
 
 # Async Testing Support
@@ -160,3 +160,6 @@ elasticsearch>=8.8.0  # Elasticsearch client
 # Custom Enterprise Extensions
 # (These would be internal packages specific to your organization)
 # Add any proprietary testing frameworks or utilities here
+
+# Additional Security Fixes
+filelock>=3.20.3  # Fix TOCTOU vulnerabilities
