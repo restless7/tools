@@ -38,7 +38,6 @@ env:
   PYTHON_VERSION: '3.11'
   PACKAGE_PATH: '.'
   TEST_RESULTS_PATH: 'test-results'
-  PYTHON_VERSION: '3.11'
   GOOGLE_CREDENTIALS_JSON: '{"type": "service_account", "project_id": "test-project"}'
   GOOGLE_DRIVE_FOLDER_ID: 'test-folder-id'
   ICE_SCRIPT_PATH: 'ice_pipeline/ingestion.py' # Use an existing file as dummy script
