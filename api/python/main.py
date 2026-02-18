@@ -75,9 +75,11 @@ class ICEIngestionResult(BaseModel):
     processing_time: float
 
 
+import tempfile
+
 # Storage directories
-UPLOAD_DIR = Path("/tmp/tools_uploads")
-OUTPUT_DIR = Path("/tmp/tools_output")
+UPLOAD_DIR = Path(tempfile.gettempdir()) / "tools_uploads"
+OUTPUT_DIR = Path(tempfile.gettempdir()) / "tools_output"
 UPLOAD_DIR.mkdir(exist_ok=True)
 OUTPUT_DIR.mkdir(exist_ok=True)
 

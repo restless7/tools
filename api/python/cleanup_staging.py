@@ -10,6 +10,7 @@ import shutil
 from pathlib import Path
 
 import psycopg2
+from psycopg2 import sql
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -74,7 +75,7 @@ class StagingCleaner:
             # Delete in reverse order (respecting foreign keys)
             for table in tables:
                 try:
-                    cur.execute(f"DELETE FROM {table}")
+                    cur.execute(sql.SQL("DELETE FROM {}").format(sql.Identifier(table)))
                     deleted = cur.fetchone()
                     logger.info(f"✔ Cleaned {table}")
                 except Exception as e:
@@ -90,7 +91,7 @@ class StagingCleaner:
 
             for seq in sequences:
                 try:
-                    cur.execute(f"ALTER SEQUENCE {seq} RESTART WITH 1")
+                    cur.execute(sql.SQL("ALTER SEQUENCE {} RESTART WITH 1").format(sql.Identifier(seq)))
                     logger.info(f"✔ Reset sequence {seq}")
                 except Exception as e:
                     logger.warning(f"  Sequence {seq} not found: {e}")
@@ -327,7 +328,7 @@ class StagingCleaner:
 
             for table in tables:
                 try:
-                    cur.execute(f"SELECT COUNT(*) FROM {table}")
+                    cur.execute(sql.SQL("SELECT COUNT(*) FROM {}").format(sql.Identifier(table)))
                     count = cur.fetchone()[0]
                     stats["database"][table] = count
                 except Exception as e:

@@ -91,9 +91,11 @@ class HealthStatus(BaseModel):
     dependencies: Dict[str, bool]
 
 
+import tempfile
+
 # Storage directories
-UPLOAD_DIR = Path("/tmp/tools_uploads")
-OUTPUT_DIR = Path("/tmp/tools_output")
+UPLOAD_DIR = Path(tempfile.gettempdir()) / "tools_uploads"
+OUTPUT_DIR = Path(tempfile.gettempdir()) / "tools_output"
 UPLOAD_DIR.mkdir(exist_ok=True)
 OUTPUT_DIR.mkdir(exist_ok=True)
 
@@ -405,6 +407,8 @@ if __name__ == "__main__":
     logger.info("Starting PlanMaestro Tools API - Production Mode")
     logger.info(f"Dependencies: {check_dependencies()}")
 
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
     uvicorn.run(
-        app, host="0.0.0.0", port=8000, reload=False, access_log=True  # Production mode
+        app, host=host, port=port, reload=False, access_log=True  # Production mode
     )

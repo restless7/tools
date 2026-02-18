@@ -386,7 +386,7 @@ class TestICEExternalServicesIntegration:
             mock_get.return_value = mock_response
 
             # Test the HTTP client
-            response = requests.get("https://api.ice-system.com/status")
+            response = requests.get("https://api.ice-system.com/status", timeout=10)
             assert response.status_code == 200
 
             data = response.json()
@@ -555,8 +555,6 @@ class TestICEDataPersistenceIntegration:
 
     def test_result_caching_integration(self):
         """Test result caching and retrieval integration."""
-        import pickle
-
         from fakeredis import FakeRedis
 
         redis_client = FakeRedis()
@@ -578,7 +576,17 @@ class TestICEDataPersistenceIntegration:
         # Cache results
         for i, result in enumerate(test_results):
             cache_key = f"ice:result:{i}"
-            serialized_result = pickle.dumps(result)
+            # Use JSON instead of pickle for security
+            result_dict = {
+                "success": result.success,
+                "status": result.status.value,
+                "output": result.output,
+                "error_message": result.error_message,
+                "return_code": result.return_code,
+                "execution_time": result.execution_time,
+                "timestamp": result.timestamp.isoformat(),
+            }
+            serialized_result = json.dumps(result_dict)
             redis_client.setex(cache_key, 3600, serialized_result)
 
         # Retrieve and verify cached results
@@ -587,10 +595,12 @@ class TestICEDataPersistenceIntegration:
             cached_data = redis_client.get(cache_key)
             assert cached_data is not None
 
-            cached_result = pickle.loads(cached_data)
-            assert isinstance(cached_result, IngestionResult)
-            assert cached_result.success is True
-            assert cached_result.execution_time == 10.0 + i
+            cached_dict = json.loads(cached_data)
+            assert cached_dict["success"] is True
+            assert cached_dict["execution_time"] == 10.0 + i
+            
+            # Reconstruct object if needed, or just verify data
+            assert cached_dict["output"] == f"Test run {i}"
 
     def test_log_aggregation_integration(self, tmp_path):
         """Test log aggregation and analysis integration."""

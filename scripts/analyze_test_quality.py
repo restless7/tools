@@ -18,7 +18,7 @@ Features:
 import argparse
 import json
 import statistics
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path

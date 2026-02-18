@@ -20,7 +20,7 @@ import argparse
 import json
 import os
 import sys
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional

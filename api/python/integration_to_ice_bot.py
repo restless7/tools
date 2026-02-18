@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 import psycopg2
+from psycopg2 import sql
 from psycopg2.extras import Json, RealDictCursor
 
 # Configure logging
@@ -201,32 +202,34 @@ class StagingToProduction:
             params = []
 
             if new_data.get("address"):
-                updates.append("address = COALESCE(address, %s)")
+                updates.append(sql.SQL("address = COALESCE(address, %s)"))
                 params.append(new_data["address"])
 
             if new_data.get("cedula"):
-                updates.append("cedula = COALESCE(cedula, %s)")
+                updates.append(sql.SQL("cedula = COALESCE(cedula, %s)"))
                 params.append(new_data["cedula"])
 
             if new_data.get("birth_date"):
-                updates.append("birth_date = COALESCE(birth_date, %s)")
+                updates.append(sql.SQL("birth_date = COALESCE(birth_date, %s)"))
                 params.append(new_data["birth_date"])
 
             if new_data.get("country"):
-                updates.append("country = COALESCE(country, %s)")
+                updates.append(sql.SQL("country = COALESCE(country, %s)"))
                 params.append(new_data["country"])
 
             if new_data.get("city"):
-                updates.append("city = COALESCE(city, %s)")
+                updates.append(sql.SQL("city = COALESCE(city, %s)"))
                 params.append(new_data["city"])
 
             # Always mark as CSV enriched
-            updates.append("csv_enriched = TRUE")
-            updates.append("updated_at = NOW()")
+            updates.append(sql.SQL("csv_enriched = TRUE"))
+            updates.append(sql.SQL("updated_at = NOW()"))
 
             if updates:
                 params.append(person_id)
-                query = f"UPDATE persons SET {', '.join(updates)} WHERE id = %s"
+                query = sql.SQL("UPDATE persons SET {} WHERE id = %s").format(
+                    sql.SQL(", ").join(updates)
+                )
                 cur.execute(query, params)
                 self.prod_conn.commit()
                 self.stats["persons_updated"] += 1

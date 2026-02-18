@@ -383,5 +383,9 @@ if __name__ == "__main__":
     LOGS_DIR.mkdir(exist_ok=True)
     REPORTS_DIR.mkdir(exist_ok=True)
 
+    debug = os.getenv("FLASK_DEBUG", "False").lower() == "true"
+    host = os.getenv("FLASK_RUN_HOST", "0.0.0.0")
+    port = int(os.getenv("FLASK_RUN_PORT", "5000"))
+
     # Start Flask app
-    app.run(host="0.0.0.0", port=5000, debug=True, threaded=True)
+    app.run(host=host, port=port, debug=debug, threaded=True)

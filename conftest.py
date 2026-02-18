@@ -65,7 +65,7 @@ TEST_CONFIG = TestConfig()
 # =============================================================================
 
 # PostgreSQL test database factory
-postgresql_proc = factories.postgresql_proc(port=None, unixsocketdir="/tmp")
+postgresql_proc = factories.postgresql_proc(port=None, unixsocketdir=tempfile.gettempdir())
 postgresql = factories.postgresql("postgresql_proc")
 
 
