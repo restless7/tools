@@ -15,13 +15,13 @@ import statistics
 import subprocess
 import sys
 import time
-import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import defusedxml.ElementTree as ET
 import git
 import psutil
 import requests

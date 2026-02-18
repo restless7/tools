@@ -133,7 +133,9 @@ async def cleanup_files():
 # Add asyncio import
 import asyncio
 
-if __name__ == "__main__":
-    import uvicorn
+import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+if __name__ == "__main__":
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run(app, host=host, port=port, reload=True)

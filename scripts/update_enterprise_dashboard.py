@@ -59,8 +59,8 @@ class DashboardUpdater:
     def load_config(self, config_file: Optional[Path]) -> Dict[str, Any]:
         """Load dashboard configuration."""
         default_config = {
-            "host": "0.0.0.0",
-            "port": 8080,
+            "host": os.getenv("DASHBOARD_HOST", "0.0.0.0"),
+            "port": int(os.getenv("DASHBOARD_PORT", "8080")),
             "debug": False,
             "frontend_url": "http://localhost:3000",
             "update_interval": 30,  # seconds
