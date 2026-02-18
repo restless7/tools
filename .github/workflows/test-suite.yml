@@ -146,7 +146,7 @@ jobs:
           ${{ env.PACKAGE_PATH }}/bandit-report.json
           ${{ env.PACKAGE_PATH }}/safety-report.json
 
-  # Modular unit testing with matrix strategy
+  # Modular unit testing
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
@@ -154,19 +154,13 @@ jobs:
     needs: [pre-flight, static-analysis]
     if: contains(needs.pre-flight.outputs.test-level, 'unit') || contains(needs.pre-flight.outputs.test-level, 'all')
     
-    strategy:
-      matrix:
-        test-group: [core, pipeline, api, utils]
-        python-version: ['3.9', '3.10', '3.11']
-      fail-fast: false
-    
     steps:
     - uses: actions/checkout@v4
     
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
       uses: actions/setup-python@v4
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: ${{ env.PYTHON_VERSION }}
         cache: 'pip'
     
     - name: Install dependencies
@@ -176,15 +170,15 @@ jobs:
         pip install -r requirements.txt
         pip install -r requirements-test.txt
     
-    - name: Run unit tests - ${{ matrix.test-group }}
+    - name: Run unit tests
       working-directory: ${{ env.PACKAGE_PATH }}
       run: |
-        pytest tests/unit/${{ matrix.test-group }}/ \
+        pytest tests/unit/ \
           --cov=ice_pipeline \
-          --cov-report=xml:coverage-${{ matrix.test-group }}-py${{ matrix.python-version }}.xml \
-          --cov-report=html:htmlcov-${{ matrix.test-group }}-py${{ matrix.python-version }}/ \
+          --cov-report=xml:coverage-unit-py${{ env.PYTHON_VERSION }}.xml \
+          --cov-report=html:htmlcov-unit-py${{ env.PYTHON_VERSION }}/ \
           --cov-fail-under=${{ env.COVERAGE_THRESHOLD }} \
-          --junit-xml=${{ env.TEST_RESULTS_PATH }}/unit-${{ matrix.test-group }}-py${{ matrix.python-version }}.xml \
+          --junit-xml=${{ env.TEST_RESULTS_PATH }}/unit-tests-py${{ env.PYTHON_VERSION }}.xml \
           --tb=short \
           --strict-markers \
           -v
@@ -193,18 +187,18 @@ jobs:
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: unit-test-results-${{ matrix.test-group }}-py${{ matrix.python-version }}
+        name: unit-test-results-py${{ env.PYTHON_VERSION }}
         path: |
-          ${{ env.PACKAGE_PATH }}/${{ env.TEST_RESULTS_PATH }}/unit-${{ matrix.test-group }}-py${{ matrix.python-version }}.xml
-          ${{ env.PACKAGE_PATH }}/coverage-${{ matrix.test-group }}-py${{ matrix.python-version }}.xml
-          ${{ env.PACKAGE_PATH }}/htmlcov-${{ matrix.test-group }}-py${{ matrix.python-version }}/
+          ${{ env.PACKAGE_PATH }}/${{ env.TEST_RESULTS_PATH }}/unit-tests-py${{ env.PYTHON_VERSION }}.xml
+          ${{ env.PACKAGE_PATH }}/coverage-unit-py${{ env.PYTHON_VERSION }}.xml
+          ${{ env.PACKAGE_PATH }}/htmlcov-unit-py${{ env.PYTHON_VERSION }}/
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
-        file: ${{ env.PACKAGE_PATH }}/coverage-${{ matrix.test-group }}-py${{ matrix.python-version }}.xml
-        flags: unit-tests,${{ matrix.test-group }},py${{ matrix.python-version }}
-        name: unit-${{ matrix.test-group }}-py${{ matrix.python-version }}
+        file: ${{ env.PACKAGE_PATH }}/coverage-unit-py${{ env.PYTHON_VERSION }}.xml
+        flags: unit-tests,py${{ env.PYTHON_VERSION }}
+        name: unit-tests-py${{ env.PYTHON_VERSION }}
 
   # Integration testing with services
   integration-tests:
