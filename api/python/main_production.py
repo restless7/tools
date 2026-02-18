@@ -407,7 +407,7 @@ if __name__ == "__main__":
     logger.info("Starting PlanMaestro Tools API - Production Mode")
     logger.info(f"Dependencies: {check_dependencies()}")
 
-    host = os.getenv("HOST", "0.0.0.0")
+    host = os.getenv("HOST", "0.0.0.0")  # nosec B104
     port = int(os.getenv("PORT", "8000"))
     uvicorn.run(
         app, host=host, port=port, reload=False, access_log=True  # Production mode

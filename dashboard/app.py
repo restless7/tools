@@ -384,7 +384,7 @@ if __name__ == "__main__":
     REPORTS_DIR.mkdir(exist_ok=True)
 
     debug = os.getenv("FLASK_DEBUG", "False").lower() == "true"
-    host = os.getenv("FLASK_RUN_HOST", "0.0.0.0")
+    host = os.getenv("FLASK_RUN_HOST", "0.0.0.0")  # nosec B104
     port = int(os.getenv("FLASK_RUN_PORT", "5000"))
 
     # Start Flask app

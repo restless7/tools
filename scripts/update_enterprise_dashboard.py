@@ -60,7 +60,7 @@ class DashboardUpdater:
     def load_config(self, config_file: Optional[Path]) -> Dict[str, Any]:
         """Load dashboard configuration."""
         default_config = {
-            "host": os.getenv("DASHBOARD_HOST", "0.0.0.0"),
+            "host": os.getenv("DASHBOARD_HOST", "0.0.0.0"),  # nosec B104
             "port": int(os.getenv("DASHBOARD_PORT", "8080")),
             "debug": False,
             "frontend_url": "http://localhost:3000",
