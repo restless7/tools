@@ -52,9 +52,7 @@ class TestICEDatabaseIntegration:
         """Test creation of ICE-related database tables."""
         with test_db_engine.connect() as conn:
             # Create test table for ICE data
-            conn.execute(
-                text(
-                    """
+            conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS ice_ingestion_log (
                     id SERIAL PRIMARY KEY,
                     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -64,33 +62,23 @@ class TestICEDatabaseIntegration:
                     execution_time FLOAT,
                     file_count INTEGER
                 )
-            """
-                )
-            )
+            """))
             conn.commit()
 
             # Test insertion
-            conn.execute(
-                text(
-                    """
+            conn.execute(text("""
                 INSERT INTO ice_ingestion_log 
                 (status, output, execution_time, file_count)
                 VALUES ('completed', 'Test output', 45.2, 10)
-            """
-                )
-            )
+            """))
             conn.commit()
 
             # Test retrieval
-            result = conn.execute(
-                text(
-                    """
+            result = conn.execute(text("""
                 SELECT status, output, execution_time, file_count
                 FROM ice_ingestion_log
                 WHERE status = 'completed'
-            """
-                )
-            )
+            """))
 
             row = result.fetchone()
             assert row[0] == "completed"
@@ -102,9 +90,7 @@ class TestICEDatabaseIntegration:
         """Test logging ICE ingestion results to database."""
         with test_db_engine.connect() as conn:
             # Setup table
-            conn.execute(
-                text(
-                    """
+            conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS ice_ingestion_results (
                     id SERIAL PRIMARY KEY,
                     run_id VARCHAR(100) UNIQUE,
@@ -117,9 +103,7 @@ class TestICEDatabaseIntegration:
                     timestamp TIMESTAMP,
                     metadata JSONB
                 )
-            """
-                )
-            )
+            """))
             conn.commit()
 
             # Create test result
@@ -135,15 +119,13 @@ class TestICEDatabaseIntegration:
 
             # Log result to database
             conn.execute(
-                text(
-                    """
+                text("""
                 INSERT INTO ice_ingestion_results 
                 (run_id, success, status, output, error_message, return_code, 
                  execution_time, timestamp, metadata)
                 VALUES (:run_id, :success, :status, :output, :error_message, 
                         :return_code, :execution_time, :timestamp, :metadata)
-            """
-                ),
+            """),
                 {
                     "run_id": "test-run-001",
                     "success": test_result.success,
@@ -159,15 +141,11 @@ class TestICEDatabaseIntegration:
             conn.commit()
 
             # Verify logging
-            result = conn.execute(
-                text(
-                    """
+            result = conn.execute(text("""
                 SELECT run_id, success, status, execution_time
                 FROM ice_ingestion_results
                 WHERE run_id = 'test-run-001'
-            """
-                )
-            )
+            """))
 
             row = result.fetchone()
             assert row[0] == "test-run-001"
@@ -598,7 +576,7 @@ class TestICEDataPersistenceIntegration:
             cached_dict = json.loads(cached_data)
             assert cached_dict["success"] is True
             assert cached_dict["execution_time"] == 10.0 + i
-            
+
             # Reconstruct object if needed, or just verify data
             assert cached_dict["output"] == f"Test run {i}"
 

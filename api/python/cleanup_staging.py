@@ -91,7 +91,11 @@ class StagingCleaner:
 
             for seq in sequences:
                 try:
-                    cur.execute(sql.SQL("ALTER SEQUENCE {} RESTART WITH 1").format(sql.Identifier(seq)))
+                    cur.execute(
+                        sql.SQL("ALTER SEQUENCE {} RESTART WITH 1").format(
+                            sql.Identifier(seq)
+                        )
+                    )
                     logger.info(f"✔ Reset sequence {seq}")
                 except Exception as e:
                     logger.warning(f"  Sequence {seq} not found: {e}")
@@ -328,7 +332,9 @@ class StagingCleaner:
 
             for table in tables:
                 try:
-                    cur.execute(sql.SQL("SELECT COUNT(*) FROM {}").format(sql.Identifier(table)))
+                    cur.execute(
+                        sql.SQL("SELECT COUNT(*) FROM {}").format(sql.Identifier(table))
+                    )
                     count = cur.fetchone()[0]
                     stats["database"][table] = count
                 except Exception as e:
