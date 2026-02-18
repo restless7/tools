@@ -16,8 +16,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from flask import (Flask, Response, jsonify, render_template, request,
-                   send_from_directory)
+from flask import (
+    Flask,
+    Response,
+    jsonify,
+    render_template,
+    request,
+    send_from_directory,
+)
 from flask_cors import CORS
 
 # Add parent directory to path

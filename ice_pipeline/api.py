@@ -23,8 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Import ingestion manager
 try:
-    from .ingestion import (ICEIngestionManager, IngestionResult,
-                            IngestionStatus)
+    from .ingestion import ICEIngestionManager, IngestionResult, IngestionStatus
 
     # Create global ingestion manager instance
     ingestion_manager = ICEIngestionManager()

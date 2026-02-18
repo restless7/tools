@@ -17,10 +17,8 @@ from fastapi import status
 from fastapi.testclient import TestClient
 
 # Import the API module from ice_pipeline
-from ice_pipeline.api import (ExcelConversionRequest, ExcelConversionResponse,
-                              app)
-from ice_pipeline.ingestion import (ICEIngestionManager, IngestionResult,
-                                    IngestionStatus)
+from ice_pipeline.api import ExcelConversionRequest, ExcelConversionResponse, app
+from ice_pipeline.ingestion import ICEIngestionManager, IngestionResult, IngestionStatus
 
 
 class TestICEPipelineAPI:

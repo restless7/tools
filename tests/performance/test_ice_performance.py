@@ -13,8 +13,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from ice_pipeline.ingestion import (ICEIngestionManager, IngestionResult,
-                                    IngestionStatus)
+from ice_pipeline.ingestion import ICEIngestionManager, IngestionResult, IngestionStatus
 
 
 @pytest.mark.performance

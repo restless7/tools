@@ -20,8 +20,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from ice_pipeline.api import app
-from ice_pipeline.ingestion import (ICEIngestionManager, IngestionResult,
-                                    IngestionStatus)
+from ice_pipeline.ingestion import ICEIngestionManager, IngestionResult, IngestionStatus
 
 
 @pytest.mark.integration

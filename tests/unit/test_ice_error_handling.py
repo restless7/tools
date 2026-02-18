@@ -17,10 +17,8 @@ import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
 
-from ice_pipeline.api import (ExcelConversionRequest, ExcelConversionResponse,
-                              app)
-from ice_pipeline.ingestion import (ICEIngestionManager, IngestionResult,
-                                    IngestionStatus)
+from ice_pipeline.api import ExcelConversionRequest, ExcelConversionResponse, app
+from ice_pipeline.ingestion import ICEIngestionManager, IngestionResult, IngestionStatus
 
 
 @pytest.mark.error_handling
