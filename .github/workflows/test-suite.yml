@@ -286,7 +286,7 @@ jobs:
           --junit-xml=${{ env.TEST_RESULTS_PATH }}/integration-tests.xml \
           --tb=short \
           --strict-markers \
-          --override-ini="cov-fail-under=40" \
+          --cov-fail-under=40 \
           -v
     
     - name: Upload integration test results
@@ -328,7 +328,7 @@ jobs:
           --junit-xml=${{ env.TEST_RESULTS_PATH }}/api-tests.xml \
           --tb=short \
           --strict-markers \
-          --override-ini="cov-fail-under=45" \
+          --cov-fail-under=45 \
           -v
     
     - name: Upload API test results
