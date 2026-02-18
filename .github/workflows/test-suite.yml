@@ -263,7 +263,17 @@ jobs:
         
         # Initialize database schema
         cd ${{ env.PACKAGE_PATH }}
-        python scripts/init_test_db.py
+        PGPASSWORD=testpass psql -h localhost -U postgres -d ice_test -c "
+          CREATE TABLE IF NOT EXISTS ingestion_runs (
+            id SERIAL PRIMARY KEY,
+            status VARCHAR(50) NOT NULL,
+            started_at TIMESTAMP DEFAULT NOW(),
+            finished_at TIMESTAMP,
+            output TEXT,
+            error_message TEXT,
+            return_code INTEGER
+          );
+        " || echo "Schema already exists or not required"
     
     - name: Run integration tests
       working-directory: ${{ env.PACKAGE_PATH }}
@@ -308,7 +318,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-test.txt
-        pip install httpx fastapi-testclient
+        pip install httpx
     
     - name: Run API tests
       working-directory: ${{ env.PACKAGE_PATH }}
