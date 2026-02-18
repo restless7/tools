@@ -18,12 +18,12 @@ Features:
 import argparse
 import json
 import statistics
-import defusedxml.ElementTree as ET
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+import defusedxml.ElementTree as ET
 import yaml
 
 

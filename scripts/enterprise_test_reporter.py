@@ -20,11 +20,11 @@ import argparse
 import json
 import os
 import sys
-import defusedxml.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import defusedxml.ElementTree as ET
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
