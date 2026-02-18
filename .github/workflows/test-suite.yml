@@ -38,6 +38,10 @@ env:
   PYTHON_VERSION: '3.11'
   PACKAGE_PATH: '.'
   TEST_RESULTS_PATH: 'test-results'
+  PYTHON_VERSION: '3.11'
+  GOOGLE_CREDENTIALS_JSON: '{"type": "service_account", "project_id": "test-project"}'
+  GOOGLE_DRIVE_FOLDER_ID: 'test-folder-id'
+  ICE_SCRIPT_PATH: 'ice_pipeline/ingestion.py' # Use an existing file as dummy script
   COVERAGE_THRESHOLD: ${{ github.event.inputs.coverage_threshold || '80' }}
   
 jobs:
@@ -374,6 +378,7 @@ jobs:
           --tb=short \
           --strict-markers \
           --timeout=600 \
+          --cov-fail-under=10 \
           -v
     
     - name: Upload E2E test results
