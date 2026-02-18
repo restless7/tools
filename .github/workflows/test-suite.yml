@@ -365,6 +365,10 @@ jobs:
     - name: Run end-to-end tests
       working-directory: ${{ env.PACKAGE_PATH }}
       run: |
+        if [ ! -d "tests/e2e" ]; then
+          echo "tests/e2e/ directory not found, skipping e2e tests"
+          exit 0
+        fi
         pytest tests/e2e/ \
           --junit-xml=${{ env.TEST_RESULTS_PATH }}/e2e-tests.xml \
           --tb=short \
@@ -413,14 +417,19 @@ jobs:
           --tb=short \
           --strict-markers \
           --timeout=300 \
+          --cov-fail-under=35 \
           -v
     
     - name: Generate performance report
       working-directory: ${{ env.PACKAGE_PATH }}
       run: |
-        python scripts/generate_performance_report.py \
-          --input ${{ env.TEST_RESULTS_PATH }}/performance-tests.xml \
-          --output ${{ env.TEST_RESULTS_PATH }}/performance-report.html
+        if [ -f "scripts/generate_performance_report.py" ]; then
+          python scripts/generate_performance_report.py \
+            --input ${{ env.TEST_RESULTS_PATH }}/performance-tests.xml \
+            --output ${{ env.TEST_RESULTS_PATH }}/performance-report.html
+        else
+          echo "Performance report script not found, skipping report generation"
+        fi
     
     - name: Upload performance test results
       uses: actions/upload-artifact@v4

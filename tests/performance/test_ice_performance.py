@@ -23,14 +23,23 @@ class TestICEIngestionPerformance:
     @pytest.fixture
     def ingestion_manager(self):
         """Create ICE ingestion manager for performance testing."""
-        with patch("ice_pipeline.ingestion.os.getenv") as mock_getenv:
-            mock_getenv.side_effect = lambda key, default=None: {
-                "GOOGLE_CREDENTIALS_JSON": '{"type": "service_account"}',
-                "GOOGLE_DRIVE_FOLDER_ID": "test_folder",
-                "ICE_SCRIPT_PATH": "/test/script.py",
-            }.get(key, default)
+        from unittest.mock import patch
 
-            return ICEIngestionManager()
+        env_values = {
+            "GOOGLE_CREDENTIALS_JSON": '{"type": "service_account"}',
+            "GOOGLE_DRIVE_FOLDER_ID": "test_folder",
+            "ICE_SCRIPT_PATH": "/test/script.py",
+        }
+        patcher = patch(
+            "ice_pipeline.ingestion.os.getenv",
+            side_effect=lambda key, default=None: env_values.get(key, default),
+        )
+        patcher.start()
+        try:
+            manager = ICEIngestionManager()
+            yield manager
+        finally:
+            patcher.stop()
 
     @pytest.mark.benchmark(group="environment_validation")
     def test_environment_validation_performance(self, ingestion_manager, benchmark):
@@ -110,14 +119,23 @@ class TestICEStressTests:
     @pytest.fixture
     def ingestion_manager(self):
         """Create ICE ingestion manager for stress testing."""
-        with patch("ice_pipeline.ingestion.os.getenv") as mock_getenv:
-            mock_getenv.side_effect = lambda key, default=None: {
-                "GOOGLE_CREDENTIALS_JSON": '{"type": "service_account"}',
-                "GOOGLE_DRIVE_FOLDER_ID": "test_folder",
-                "ICE_SCRIPT_PATH": "/test/script.py",
-            }.get(key, default)
+        from unittest.mock import patch
 
-            return ICEIngestionManager()
+        env_values = {
+            "GOOGLE_CREDENTIALS_JSON": '{"type": "service_account"}',
+            "GOOGLE_DRIVE_FOLDER_ID": "test_folder",
+            "ICE_SCRIPT_PATH": "/test/script.py",
+        }
+        patcher = patch(
+            "ice_pipeline.ingestion.os.getenv",
+            side_effect=lambda key, default=None: env_values.get(key, default),
+        )
+        patcher.start()
+        try:
+            manager = ICEIngestionManager()
+            yield manager
+        finally:
+            patcher.stop()
 
     @pytest.mark.asyncio
     async def test_ingestion_stress_test(self, ingestion_manager):
