@@ -4,12 +4,12 @@ on:
   push:
     branches: [ main, develop, 'feature/*', 'hotfix/*' ]
     paths:
-      - 'packages/tools/**'
+      - '**'
       - '.github/workflows/test-suite.yml'
   pull_request:
     branches: [ main, develop ]
     paths:
-      - 'packages/tools/**'
+      - '**'
   schedule:
     # Run comprehensive tests daily at 6 AM UTC
     - cron: '0 6 * * *'
