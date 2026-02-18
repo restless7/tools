@@ -35,7 +35,7 @@ on:
         type: string
 
 env:
-  PYTHON_VERSION: '3.9'
+  PYTHON_VERSION: '3.11'
   PACKAGE_PATH: '.'
   TEST_RESULTS_PATH: 'test-results'
   COVERAGE_THRESHOLD: ${{ github.event.inputs.coverage_threshold || '80' }}
