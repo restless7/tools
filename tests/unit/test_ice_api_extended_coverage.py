@@ -205,7 +205,9 @@ class TestCleanupIngestionResources:
             ice_file.write_text("locked")
 
             with patch("tempfile.gettempdir", return_value=tmpdir):
-                with patch.object(Path, "unlink", side_effect=PermissionError("Locked")):
+                with patch.object(
+                    Path, "unlink", side_effect=PermissionError("Locked")
+                ):
                     result = cleanup_ingestion_resources()
 
             # Should complete with warnings, not raise
@@ -265,7 +267,9 @@ class TestRunIngestionBackground:
     async def test_background_ingestion_exception_is_caught(self):
         """Test that exceptions in background ingestion are caught and logged."""
         mock_manager = AsyncMock()
-        mock_manager.run_ingestion = AsyncMock(side_effect=Exception("Ingestion crashed"))
+        mock_manager.run_ingestion = AsyncMock(
+            side_effect=Exception("Ingestion crashed")
+        )
 
         with patch("ice_pipeline.api.ingestion_manager", mock_manager):
             # Should NOT raise — exceptions must be caught internally
