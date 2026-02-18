@@ -91,8 +91,11 @@ class TestICEAPIEndpoints:
         """Test Excel conversion endpoint input validation."""
         # Test requests with missing required fields (body must be present for 422)
         invalid_requests = [
-            {"file_path": "/test/file.xlsx"},  # Missing output_format
-            {"output_format": "csv"},  # Missing file_path
+            {"output_format": "csv"},  # Missing file_path (required field)
+            {
+                "file_path": "/test/file.txt",  # Invalid extension (not .xlsx/.xls)
+                "output_format": "csv",
+            },
             {
                 "file_path": "/test/file.xlsx",
                 "output_format": "invalid_format",  # Invalid format value
