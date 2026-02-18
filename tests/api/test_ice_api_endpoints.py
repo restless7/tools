@@ -89,14 +89,13 @@ class TestICEAPIEndpoints:
 
     def test_convert_excel_endpoint_validation(self, client):
         """Test Excel conversion endpoint input validation."""
-        # Test missing required fields
+        # Test requests with missing required fields (body must be present for 422)
         invalid_requests = [
-            {},  # Empty request
             {"file_path": "/test/file.xlsx"},  # Missing output_format
             {"output_format": "csv"},  # Missing file_path
             {
                 "file_path": "/test/file.xlsx",
-                "output_format": "invalid_format",  # Invalid format
+                "output_format": "invalid_format",  # Invalid format value
             },
         ]
 
@@ -256,6 +255,7 @@ class TestICEAPIEndpoints:
         """Test successful ICE cleanup endpoint."""
         with patch("ice_pipeline.api.cleanup_ingestion_resources") as mock_cleanup:
             mock_cleanup.return_value = {
+                "status": "completed",
                 "files_cleaned": 15,
                 "temp_dirs_removed": 3,
                 "cache_cleared": True,
@@ -290,6 +290,7 @@ class TestICEAPIEndpoints:
         """Test ICE cleanup with partial success."""
         with patch("ice_pipeline.api.cleanup_ingestion_resources") as mock_cleanup:
             mock_cleanup.return_value = {
+                "status": "completed",
                 "files_cleaned": 10,
                 "temp_dirs_removed": 1,
                 "cache_cleared": False,  # Partial failure

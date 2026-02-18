@@ -30,7 +30,10 @@ class TestICEDatabaseIntegration:
     @pytest.fixture
     def test_db_engine(self, postgresql):
         """Create test database engine."""
-        db_url = f"postgresql://postgres@{postgresql.host}:{postgresql.port}/{postgresql.info.dbname}"
+        # pytest-postgresql v8 changed the fixture: postgresql is now a Connection object
+        # Access connection info via postgresql.info
+        info = postgresql.info
+        db_url = f"postgresql://postgres@{info.host}:{info.port}/{info.dbname}"
         engine = create_engine(db_url)
         return engine
 
@@ -300,45 +303,40 @@ class TestICEExternalServicesIntegration:
 
     def test_google_drive_api_mock_integration(self):
         """Test Google Drive API integration with mocking."""
-        with patch("ice_pipeline.ingestion.build") as mock_build:
-            # Mock Google Drive service
-            mock_service = Mock()
-            mock_files = Mock()
-            mock_service.files.return_value = mock_files
+        # Mock the Google Drive service directly without patching the module
+        # (the ingestion module does not import `build` at module level)
+        mock_build = Mock()
 
-            # Mock file list response
-            mock_files.list.return_value.execute.return_value = {
-                "files": [
-                    {
-                        "id": "file123",
-                        "name": "test_data.xlsx",
-                        "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    },
-                    {
-                        "id": "file456",
-                        "name": "config.json",
-                        "mimeType": "application/json",
-                    },
-                ]
-            }
+        # Mock Google Drive service
+        mock_service = Mock()
+        mock_files = Mock()
+        mock_service.files.return_value = mock_files
 
-            mock_build.return_value = mock_service
+        # Mock file list response
+        mock_files.list.return_value.execute.return_value = {
+            "files": [
+                {
+                    "id": "file123",
+                    "name": "test_data.xlsx",
+                    "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                },
+                {
+                    "id": "file456",
+                    "name": "config.json",
+                    "mimeType": "application/json",
+                },
+            ]
+        }
 
-            # Test the integration
-            with patch("ice_pipeline.ingestion.os.getenv") as mock_getenv:
-                mock_getenv.side_effect = lambda key, default=None: {
-                    "GOOGLE_CREDENTIALS_JSON": '{"type": "service_account"}',
-                    "GOOGLE_DRIVE_FOLDER_ID": "test_folder_123",
-                }.get(key, default)
+        mock_build.return_value = mock_service
 
-                # This would normally interact with Google Drive
-                # Here we're testing that the mocking works correctly
-                service = mock_build()
-                files_result = service.files().list().execute()
+        # Test the mock integration
+        service = mock_build()
+        files_result = service.files().list().execute()
 
-                assert len(files_result["files"]) == 2
-                assert files_result["files"][0]["name"] == "test_data.xlsx"
-                assert files_result["files"][1]["name"] == "config.json"
+        assert len(files_result["files"]) == 2
+        assert files_result["files"][0]["name"] == "test_data.xlsx"
+        assert files_result["files"][1]["name"] == "config.json"
 
     def test_redis_cache_integration(self):
         """Test Redis cache integration with fake Redis."""
@@ -402,6 +400,20 @@ class TestICEEndToEndIntegration:
     def api_client(self):
         """Create API client for end-to-end testing."""
         return TestClient(app)
+
+    @pytest.fixture
+    def temp_test_files(self, tmp_path):
+        """Create temporary test files for end-to-end testing."""
+        import pandas as pd
+
+        excel_file = tmp_path / "test_data.xlsx"
+        df = pd.DataFrame({"col1": [1, 2, 3], "col2": ["a", "b", "c"]})
+        df.to_excel(excel_file, index=False)
+
+        csv_file = tmp_path / "test_data.csv"
+        df.to_csv(csv_file, index=False)
+
+        return {"excel_file": excel_file, "csv_file": csv_file, "tmp_dir": tmp_path}
 
     @pytest.mark.asyncio
     async def test_full_pipeline_integration(self, api_client, temp_test_files):
