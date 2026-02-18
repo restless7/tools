@@ -3,16 +3,17 @@ Minimal FastAPI backend for testing the frontend
 Provides basic endpoints without heavy dependencies
 """
 
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
 import json
 import os
-import time
 import shutil
-from pathlib import Path
-from typing import Optional, Dict, Any
+import time
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Optional
+
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 
 app = FastAPI(title="Tools Platform API", version="1.0.0")
 
@@ -31,27 +32,28 @@ OUTPUT_DIR = Path("outputs")
 UPLOAD_DIR.mkdir(exist_ok=True)
 OUTPUT_DIR.mkdir(exist_ok=True)
 
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat() + "Z",
-        "services": {
-            "excel_converter": "active",
-            "ice_ingestion": "active"
-        }
+        "services": {"excel_converter": "active", "ice_ingestion": "active"},
     }
+
 
 @app.post("/excel/convert")
 async def convert_excel_to_csv(file: UploadFile = File(...)):
     """Mock Excel to CSV conversion"""
-    if not file.filename.endswith(('.xlsx', '.xls')):
-        raise HTTPException(status_code=400, detail="Invalid file type. Please upload an Excel file.")
-    
+    if not file.filename.endswith((".xlsx", ".xls")):
+        raise HTTPException(
+            status_code=400, detail="Invalid file type. Please upload an Excel file."
+        )
+
     # Simulate processing time
     await asyncio.sleep(2)
-    
+
     # Mock response
     return {
         "success": True,
@@ -59,12 +61,13 @@ async def convert_excel_to_csv(file: UploadFile = File(...)):
         "sheets_processed": 3,
         "files_created": [
             f"{file.filename}_Sheet1.csv",
-            f"{file.filename}_Sheet2.csv", 
-            f"{file.filename}_Sheet3.csv"
+            f"{file.filename}_Sheet2.csv",
+            f"{file.filename}_Sheet3.csv",
         ],
         "message": "Excel file converted successfully to CSV files",
-        "processing_time": 2.1
+        "processing_time": 2.1,
     }
+
 
 @app.get("/excel/sheets/{filename}")
 async def get_excel_sheets(filename: str):
@@ -72,64 +75,65 @@ async def get_excel_sheets(filename: str):
     return {
         "filename": filename,
         "sheets": ["Sheet1", "Sheet2", "Sheet3"],
-        "sheet_count": 3
+        "sheet_count": 3,
     }
+
 
 @app.get("/download/{filename}")
 async def download_file(filename: str):
     """Mock file download - creates a sample CSV"""
     # Create a sample CSV file
     sample_csv = "Name,Age,City\nJohn Doe,30,New York\nJane Smith,25,Los Angeles\nBob Johnson,35,Chicago\n"
-    
+
     file_path = OUTPUT_DIR / filename
-    with open(file_path, 'w') as f:
+    with open(file_path, "w") as f:
         f.write(sample_csv)
-    
-    return FileResponse(
-        file_path,
-        media_type='text/csv',
-        filename=filename
-    )
+
+    return FileResponse(file_path, media_type="text/csv", filename=filename)
+
 
 @app.post("/ice/ingest")
 async def trigger_ice_ingestion(options: Optional[Dict[str, Any]] = None):
     """Mock ICE database ingestion"""
     if options is None:
         options = {}
-    
+
     # Simulate processing time
     processing_time = 5.5
     await asyncio.sleep(1)  # Short delay for demo
-    
+
     return {
         "success": True,
         "files_processed": 12,
         "total_rows": 1547,
         "message": "ICE database ingestion completed successfully. Processed 12 files with 1,547 total rows.",
-        "processing_time": processing_time
+        "processing_time": processing_time,
     }
+
 
 @app.delete("/cleanup")
 async def cleanup_files():
     """Cleanup temporary files"""
     upload_count = len(list(UPLOAD_DIR.glob("*")))
     output_count = len(list(OUTPUT_DIR.glob("*")))
-    
+
     # Clean up files
     for file in UPLOAD_DIR.glob("*"):
         file.unlink()
     for file in OUTPUT_DIR.glob("*"):
         file.unlink()
-    
+
     return {
         "message": "Cleanup completed successfully",
         "upload_files_removed": upload_count,
-        "output_files_removed": output_count
+        "output_files_removed": output_count,
     }
+
 
 # Add asyncio import
 import asyncio
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

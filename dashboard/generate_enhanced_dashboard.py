@@ -7,14 +7,15 @@ This script creates the enhanced dashboard HTML file with comprehensive project 
 import os
 from pathlib import Path
 
+
 def generate_enhanced_dashboard():
     """Generate the complete enhanced dashboard HTML"""
-    
+
     # Read the original dashboard as backup reference
     templates_dir = Path(__file__).parent / "templates"
     backup_file = templates_dir / "index.html.backup"
     output_file = templates_dir / "index.html"
-    
+
     # Enhanced dashboard HTML with all sections
     html_content = """<!DOCTYPE html>
 <html lang="en">
@@ -1373,15 +1374,16 @@ def generate_enhanced_dashboard():
 </body>
 </html>
 """
-    
+
     # Write the enhanced dashboard
-    with open(output_file, 'w', encoding='utf-8') as f:
+    with open(output_file, "w", encoding="utf-8") as f:
         f.write(html_content)
-    
+
     print(f"✅ Enhanced dashboard generated successfully!")
     print(f"📄 Output file: {output_file}")
     print(f"🔄 Backup saved: {backup_file}")
     print(f"\n🚀 Start the dashboard with: ./start_dashboard.sh")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     generate_enhanced_dashboard()
