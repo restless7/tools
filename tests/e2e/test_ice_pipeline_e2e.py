@@ -10,7 +10,6 @@ import pytest
 
 from ice_pipeline.ingestion import IngestionStatus
 
-
 # ──────────────────────────────────────────────
 # 1. Health & Status baseline
 # ──────────────────────────────────────────────
